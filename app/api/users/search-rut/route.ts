@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { prisma } from "../../../../lib/prisma"; // Cuatro niveles arriba para llegar a lib
+import { prisma } from "@/lib/prisma"; 
 
 export async function GET(request: Request) {
   try {

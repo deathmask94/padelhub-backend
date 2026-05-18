@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { prisma } from "../../../../lib/prisma"; // Cuatro niveles arriba para llegar a lib
+import { prisma } from "../../../../lib/prisma"; 
 import bcrypt from "bcryptjs";
 
 export async function POST(request: Request) {

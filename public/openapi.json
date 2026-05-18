@@ -1,0 +1,175 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "PadelHub API - Sistema de Gestión de Partidos",
+    "version": "1.0.0",
+    "description": "Documentación técnica oficial completa del backend para el proyecto de título PadelHub. Refleja con total exactitud las 9 consultas activas del entorno de Postman."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000/api",
+      "description": "Servidor Local de Desarrollo"
+    }
+  ],
+  "paths": {
+    "/users": {
+      "post": {
+        "tags": ["1. Gestión de Usuarios y Autenticación"],
+        "summary": "POST: Crear Usuario",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "rut": { "type": "integer", "example": 12345678 },
+                  "dv_rut": { "type": "string", "example": "5" },
+                  "phone": { "type": "string", "example": "+56912345678" },
+                  "name": { "type": "string", "example": "Felipe Martínez" },
+                  "password": { "type": "string", "example": "clave123" },
+                  "zone": { "type": "string", "example": "Concepción" }
+                },
+                "required": ["rut", "dv_rut", "phone", "name", "password", "zone"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Usuario creado e insertado con éxito" }
+        }
+      },
+      "get": {
+        "tags": ["2. Consultas y Filtros de Jugadores"],
+        "summary": "GET: Ver Todos Los Jugadores",
+        "description": "Retorna la lista completa de usuarios registrados en el sistema.",
+        "responses": {
+          "200": { "description": "Lista de jugadores obtenida correctamente" }
+        }
+      }
+    },
+    "/users/{rut}": {
+      "get": {
+        "tags": ["2. Consultas y Filtros de Jugadores"],
+        "summary": "GET: Buscar Jugador Por Rut",
+        "parameters": [
+          { "name": "rut", "in": "path", "required": true, "schema": { "type": "integer", "example": 12345678 } }
+        ],
+        "responses": {
+          "200": { "description": "Jugador encontrado" },
+          "404": { "description": "Jugador no registrado" }
+        }
+      },
+      "delete": {
+        "tags": ["1. Gestión de Usuarios y Autenticación"],
+        "summary": "DEL: Borrar Usuario Por RUT Sin DV",
+        "parameters": [
+          { "name": "rut", "in": "path", "required": true, "schema": { "type": "integer", "example": 12345678 } }
+        ],
+        "responses": {
+          "200": { "description": "Usuario eliminado correctamente de Supabase" }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "tags": ["1. Gestión de Usuarios y Autenticación"],
+        "summary": "POST: Inicio Sesion",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "rut": { "type": "integer", "example": 12345678 },
+                  "password": { "type": "string", "example": "clave123" }
+                },
+                "required": ["rut", "password"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Login exitoso" }
+        }
+      }
+    },
+    "/users/{rut}/profile": {
+      "get": {
+        "tags": ["3. Perfil Deportivo y Estadísticas"],
+        "summary": "GET: Datos Perfil Por Rut",
+        "description": "Consolida la información del perfil del jugador y calcula los partidos jugados en tiempo real.",
+        "parameters": [
+          { "name": "rut", "in": "path", "required": true, "schema": { "type": "string", "example": "12345678" } }
+        ],
+        "responses": {
+          "200": { "description": "Datos de perfil y stats cargados" }
+        }
+      }
+    },
+    "/users/{rut}/profile/photo": {
+      "post": {
+        "tags": ["4. Gestión de Multimedia (Cloudinary)"],
+        "summary": "POST: Insertar o Cambiar Foto De Perfil",
+        "parameters": [
+          { "name": "rut", "in": "path", "required": true, "schema": { "type": "string", "example": "12345678" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": { "type": "string", "format": "binary" }
+                },
+                "required": ["file"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Foto guardada con éxito en Cloudinary" }
+        }
+      },
+      "delete": {
+        "tags": ["4. Gestión de Multimedia (Cloudinary)"],
+        "summary": "DEL: Borrar Foto Perfil",
+        "parameters": [
+          { "name": "rut", "in": "path", "required": true, "schema": { "type": "string", "example": "12345678" } }
+        ],
+        "responses": {
+          "200": { "description": "Foto removida de la BD y del Storage" }
+        }
+      }
+    },
+    "/matches": {
+      "post": {
+        "tags": ["5. Gestión de Partidos (Módulos de Juego)"],
+        "summary": "POST: Crear Partido",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "organizer_id": { "type": "string", "format": "uuid", "example": "9e094ce9-64a6-44de-7806-744cdbb02695" },
+                  "club": { "type": "string", "example": "Padel Break Club" },
+                  "format": { "type": "string", "enum": ["singles", "doubles"], "example": "doubles" },
+                  "match_date": { "type": "string", "format": "date", "example": "2026-05-20" },
+                  "match_time": { "type": "string", "example": "19:30:00" }
+                },
+                "required": ["organizer_id", "club", "format", "match_date", "match_time"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Partido abierto y agendado correctamente en el sistema" }
+        }
+      }
+    }
+  }
+}

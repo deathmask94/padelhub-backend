@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { prisma } from "../../../lib/prisma";
+import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 
 // ==========================================
-// 1. GET: Obtener todos los usuarios (Ya funciona)
+// 1. GET: Obtener todos los usuarios 
 // ==========================================
 export async function GET() {
   try {
@@ -20,7 +20,7 @@ export async function GET() {
 }
 
 // ==========================================
-// 2. POST: Registro Esencial de Usuario
+// 2. POST: Registro Usuario
 // ==========================================
 export async function POST(request: Request) {
   try {
@@ -35,7 +35,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // Validación 1: Verificar si el teléfono ya existe (Criterio de la HU-001)
+    // Validación 1: Verificar si el teléfono ya existe 
     const existingPhone = await prisma.users.findUnique({
       where: { phone },
     });
@@ -75,7 +75,7 @@ export async function POST(request: Request) {
         name,
         password_hash: hashedPassword,
         zone,
-        // Los enums y defaults (level, role, mmr) se asignan solos gracias a tu schema.prisma
+        // Los enums y defaults (level, role, mmr) se asignan solos gracias a schema.prisma
       },
     });
 
@@ -95,7 +95,7 @@ export async function POST(request: Request) {
   }
 }
 
-  // ==========================================
+// ==========================================
 // 3. DELETE: Eliminar un jugador por su RUT
 // ==========================================
 export async function DELETE(request: Request) {

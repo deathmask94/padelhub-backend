@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { prisma } from "../../../lib/prisma"; // Tres niveles hacia arriba para llegar a lib
+import { prisma } from "@/lib/prisma"; 
 
 // ==========================================
 // 1. POST: Crear un nuevo partido
