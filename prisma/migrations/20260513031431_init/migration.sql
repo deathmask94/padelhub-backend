@@ -66,7 +66,7 @@ CREATE TABLE "mmr_history" (
     "match_id" UUID NOT NULL,
     "mmr_before" INTEGER NOT NULL,
     "mmr_after" INTEGER NOT NULL,
-    "delta" INTEGER NOT NULL DEFAULT (mmr_after - mmr_before),
+    "delta" INTEGER NOT NULL,
     "calculated_at" TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "mmr_history_pkey" PRIMARY KEY ("id")

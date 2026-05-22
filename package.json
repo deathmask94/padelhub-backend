@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "postinstall": "prisma generate",
     "test": "jest --watchAll"
+    
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
