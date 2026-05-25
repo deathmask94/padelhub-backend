@@ -9,7 +9,6 @@
     "lint": "eslint",
     "postinstall": "prisma generate",
     "test": "jest --watchAll"
-    
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
@@ -21,7 +20,8 @@
     "prisma": "^5.22.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
-    "swagger-ui-react": "^5.32.6"
+    "swagger-ui-react": "^5.32.6",
+    "twilio": "^6.0.2"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
