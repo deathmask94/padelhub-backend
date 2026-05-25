@@ -245,17 +245,18 @@
       "post": {
         "tags": ["4. Partidos"],
         "summary": "Crear partido",
+        "description": "Crea un partido y agrega automáticamente al organizador como primer jugador confirmado en team_a.",
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["organizer_id", "club", "format", "match_date", "match_time"],
+                "required": ["organizer_id", "club", "match_date", "match_time"],
                 "properties": {
                   "organizer_id": { "type": "string", "format": "uuid", "example": "9e094ce9-64a6-44de-7806-744cdbb02695" },
                   "club":         { "type": "string", "example": "Padel Break Club" },
-                  "format":       { "type": "string", "enum": ["singles", "doubles"], "example": "doubles" },
+                  "format":       { "type": "string", "enum": ["singles", "doubles"], "example": "doubles", "default": "doubles" },
                   "match_date":   { "type": "string", "format": "date", "example": "2026-05-25" },
                   "match_time":   { "type": "string", "example": "19:30:00" }
                 }
@@ -264,15 +265,89 @@
           }
         },
         "responses": {
-          "201": { "description": "Partido creado y agendado correctamente." },
+          "201": { "description": "Partido creado. El organizador queda agregado como jugador." },
           "400": { "description": "Campos requeridos faltantes." }
         }
       },
       "get": {
         "tags": ["4. Partidos"],
-        "summary": "Obtener todos los partidos",
+        "summary": "Listar partidos abiertos",
+        "description": "Retorna partidos filtrados por zona del organizador. Incluye jugadores confirmados, cupos disponibles e indicador de partido lleno.",
+        "parameters": [
+          {
+            "name": "zone",
+            "in": "query",
+            "required": false,
+            "description": "Filtra partidos por la zona del organizador (ej: Concepción)",
+            "schema": { "type": "string", "example": "Concepción" }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "description": "Estado del partido. Por defecto: open",
+            "schema": { "type": "string", "enum": ["open", "confirmed", "in_progress", "finished", "cancelled"], "default": "open" }
+          }
+        ],
         "responses": {
-          "200": { "description": "Lista de partidos disponibles." }
+          "200": { "description": "Lista de partidos con jugadores, cupos y zona." }
+        }
+      }
+    },
+    "/matches/{id}/join": {
+      "post": {
+        "tags": ["4. Partidos"],
+        "summary": "Unirse a un partido",
+        "description": "Agrega al jugador al partido. Si el partido queda completo, cambia su estado a 'confirmed'. El equipo se asigna automáticamente.",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "description": "UUID del partido", "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["user_id"],
+                "properties": {
+                  "user_id": { "type": "string", "format": "uuid", "example": "9e094ce9-64a6-44de-7806-744cdbb02695" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Jugador agregado al partido correctamente." },
+          "400": { "description": "Partido no disponible o ya está completo." },
+          "404": { "description": "Partido no encontrado." },
+          "409": { "description": "El jugador ya es parte de este partido." }
+        }
+      },
+      "delete": {
+        "tags": ["4. Partidos"],
+        "summary": "Salir de un partido",
+        "description": "Elimina al jugador del partido. Si el partido estaba completo, vuelve a estado 'open'. El organizador no puede abandonar.",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "description": "UUID del partido", "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["user_id"],
+                "properties": {
+                  "user_id": { "type": "string", "format": "uuid", "example": "9e094ce9-64a6-44de-7806-744cdbb02695" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Jugador eliminado del partido." },
+          "400": { "description": "El organizador no puede abandonar el partido." },
+          "404": { "description": "Partido no encontrado o jugador no es parte del partido." }
         }
       }
     }
