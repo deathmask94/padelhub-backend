@@ -82,7 +82,7 @@ export default async function UsersPage({
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Usuarios</h1>
-        <span className="text-sm text-gray-500">{total} en total</span>
+        <span className="text-sm text-gray-700">{total} en total</span>
       </div>
 
       {/* Filtros */}
@@ -132,7 +132,7 @@ export default async function UsersPage({
         </button>
         <a
           href="/admin/users"
-          className="border border-gray-300 text-gray-600 hover:text-gray-900 px-4 py-2 rounded-lg text-sm transition-colors"
+          className="border border-gray-300 text-gray-800 hover:text-gray-950 px-4 py-2 rounded-lg text-sm transition-colors"
         >
           Limpiar
         </a>
@@ -144,46 +144,46 @@ export default async function UsersPage({
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
-                <th className="text-left px-4 py-3 font-semibold text-gray-600">RUT</th>
-                <th className="text-left px-4 py-3 font-semibold text-gray-600">Nombre</th>
-                <th className="text-left px-4 py-3 font-semibold text-gray-600">Teléfono</th>
-                <th className="text-left px-4 py-3 font-semibold text-gray-600">Zona</th>
-                <th className="text-left px-4 py-3 font-semibold text-gray-600">Nivel</th>
-                <th className="text-left px-4 py-3 font-semibold text-gray-600">MMR</th>
-                <th className="text-left px-4 py-3 font-semibold text-gray-600">Rol</th>
-                <th className="text-left px-4 py-3 font-semibold text-gray-600">Estado</th>
-                <th className="text-left px-4 py-3 font-semibold text-gray-600">Acciones</th>
+                <th className="text-left px-4 py-3 font-semibold text-gray-800">RUT</th>
+                <th className="text-left px-4 py-3 font-semibold text-gray-800">Nombre</th>
+                <th className="text-left px-4 py-3 font-semibold text-gray-800">Teléfono</th>
+                <th className="text-left px-4 py-3 font-semibold text-gray-800">Zona</th>
+                <th className="text-left px-4 py-3 font-semibold text-gray-800">Nivel</th>
+                <th className="text-left px-4 py-3 font-semibold text-gray-800">MMR</th>
+                <th className="text-left px-4 py-3 font-semibold text-gray-800">Rol</th>
+                <th className="text-left px-4 py-3 font-semibold text-gray-800">Estado</th>
+                <th className="text-left px-4 py-3 font-semibold text-gray-800">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {users.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="text-center text-gray-400 py-12">
+                  <td colSpan={9} className="text-center text-gray-600 py-12">
                     No se encontraron usuarios
                   </td>
                 </tr>
               ) : (
                 users.map((user) => (
                   <tr key={user.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-3 text-gray-600 font-mono text-xs">
+                    <td className="px-4 py-3 text-gray-800 font-mono text-xs">
                       {user.rut}-{user.dv_rut}
                     </td>
-                    <td className="px-4 py-3 font-medium text-gray-900">{user.name}</td>
-                    <td className="px-4 py-3 text-gray-600">{user.phone}</td>
-                    <td className="px-4 py-3 text-gray-600">{user.zone}</td>
+                    <td className="px-4 py-3 font-semibold text-gray-950">{user.name}</td>
+                    <td className="px-4 py-3 text-gray-800">{user.phone}</td>
+                    <td className="px-4 py-3 text-gray-800">{user.zone}</td>
                     <td className="px-4 py-3">
                       <span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded text-xs font-medium">
                         {LEVEL_LABELS[user.level] ?? user.level}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-gray-600">{user.mmr}</td>
+                    <td className="px-4 py-3 text-gray-800">{user.mmr}</td>
                     <td className="px-4 py-3">
                       {user.role === "admin" ? (
                         <span className="bg-amber-50 text-amber-700 px-2 py-0.5 rounded text-xs font-medium">
                           Admin
                         </span>
                       ) : (
-                        <span className="text-gray-400 text-xs">Jugador</span>
+                        <span className="text-gray-700 text-xs">Jugador</span>
                       )}
                     </td>
                     <td className="px-4 py-3">
@@ -219,14 +219,14 @@ export default async function UsersPage({
       {/* Paginación */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between mt-6">
-          <span className="text-sm text-gray-500">
+          <span className="text-sm text-gray-700">
             Página {page} de {totalPages}
           </span>
           <div className="flex gap-2">
             {page > 1 && (
               <a
                 href={buildHref({ page: String(page - 1) })}
-                className="border border-gray-300 px-3 py-1.5 rounded-lg text-sm text-gray-600 hover:text-gray-900 transition-colors"
+                className="border border-gray-300 px-3 py-1.5 rounded-lg text-sm text-gray-800 hover:text-gray-950 transition-colors"
               >
                 Anterior
               </a>
@@ -234,7 +234,7 @@ export default async function UsersPage({
             {page < totalPages && (
               <a
                 href={buildHref({ page: String(page + 1) })}
-                className="border border-gray-300 px-3 py-1.5 rounded-lg text-sm text-gray-600 hover:text-gray-900 transition-colors"
+                className="border border-gray-300 px-3 py-1.5 rounded-lg text-sm text-gray-800 hover:text-gray-950 transition-colors"
               >
                 Siguiente
               </a>

@@ -32,31 +32,31 @@ export default async function EditUserPage({
   return (
     <div className="max-w-xl">
       <div className="flex items-center gap-3 mb-6">
-        <Link href="/admin/users" className="text-gray-400 hover:text-gray-600 text-sm transition-colors">
+        <Link href="/admin/users" className="text-gray-700 hover:text-gray-950 text-sm transition-colors">
           ← Volver
         </Link>
-        <h1 className="text-2xl font-bold text-gray-900">Editar usuario</h1>
+        <h1 className="text-2xl font-bold text-gray-950">Editar usuario</h1>
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <div className="grid grid-cols-2 gap-4 mb-6 pb-4 border-b border-gray-100 text-sm">
           <div>
-            <p className="text-gray-500">RUT</p>
-            <p className="font-medium text-gray-900">
+            <p className="text-gray-700">RUT</p>
+            <p className="font-semibold text-gray-950">
               {user.rut}-{user.dv_rut}
             </p>
           </div>
           <div>
-            <p className="text-gray-500">Teléfono</p>
-            <p className="font-medium text-gray-900">{user.phone}</p>
+            <p className="text-gray-700">Teléfono</p>
+            <p className="font-semibold text-gray-950">{user.phone}</p>
           </div>
           <div>
-            <p className="text-gray-500">MMR</p>
-            <p className="font-medium text-gray-900">{user.mmr}</p>
+            <p className="text-gray-700">MMR</p>
+            <p className="font-semibold text-gray-950">{user.mmr}</p>
           </div>
           <div>
-            <p className="text-gray-500">Miembro desde</p>
-            <p className="font-medium text-gray-900">
+            <p className="text-gray-700">Miembro desde</p>
+            <p className="font-semibold text-gray-950">
               {new Date(user.created_at).toLocaleDateString("es-CL")}
             </p>
           </div>

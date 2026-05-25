@@ -18,11 +18,11 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
             </a>
           </div>
           <div className="flex items-center gap-4">
-            <span className="text-indigo-200 text-sm">{admin.name}</span>
+            <span className="text-white text-sm font-medium">{admin.name}</span>
             <form action={logoutAction}>
               <button
                 type="submit"
-                className="text-sm text-indigo-200 hover:text-white transition-colors cursor-pointer"
+                className="text-sm text-indigo-100 hover:text-white transition-colors cursor-pointer"
               >
                 Cerrar sesión
               </button>

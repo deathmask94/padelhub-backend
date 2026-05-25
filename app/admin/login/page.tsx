@@ -9,8 +9,8 @@ export default function AdminLoginPage() {
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
       <div className="bg-white p-8 rounded-xl shadow-md w-full max-w-sm">
         <div className="mb-6 text-center">
-          <h1 className="text-2xl font-bold text-gray-900">PadelHub Admin</h1>
-          <p className="text-sm text-gray-500 mt-1">Acceso restringido</p>
+          <h1 className="text-2xl font-bold text-gray-950">PadelHub Admin</h1>
+          <p className="text-sm text-gray-700 mt-1">Acceso restringido</p>
         </div>
 
         <form action={action} className="space-y-4">

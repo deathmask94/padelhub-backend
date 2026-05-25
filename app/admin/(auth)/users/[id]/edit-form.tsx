@@ -36,7 +36,7 @@ export default function EditForm({ user }: { user: User }) {
       )}
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
+        <label className="block text-sm font-medium text-gray-900 mb-1">Nombre</label>
         <input
           name="name"
           type="text"
@@ -47,7 +47,7 @@ export default function EditForm({ user }: { user: User }) {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Zona</label>
+        <label className="block text-sm font-medium text-gray-900 mb-1">Zona</label>
         <input
           name="zone"
           type="text"
@@ -58,7 +58,7 @@ export default function EditForm({ user }: { user: User }) {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Nivel</label>
+        <label className="block text-sm font-medium text-gray-900 mb-1">Nivel</label>
         <select
           name="level"
           defaultValue={user.level}
@@ -73,7 +73,7 @@ export default function EditForm({ user }: { user: User }) {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Rol</label>
+        <label className="block text-sm font-medium text-gray-900 mb-1">Rol</label>
         <select
           name="role"
           defaultValue={user.role}
@@ -85,7 +85,7 @@ export default function EditForm({ user }: { user: User }) {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
+        <label className="block text-sm font-medium text-gray-900 mb-1">Estado</label>
         <select
           name="is_active"
           defaultValue={user.is_active ? "true" : "false"}
@@ -106,7 +106,7 @@ export default function EditForm({ user }: { user: User }) {
         </button>
         <Link
           href="/admin/users"
-          className="flex-1 text-center border border-gray-300 text-gray-600 hover:text-gray-900 py-2 rounded-lg text-sm transition-colors"
+          className="flex-1 text-center border border-gray-300 text-gray-800 hover:text-gray-950 py-2 rounded-lg text-sm transition-colors"
         >
           Cancelar
         </Link>
