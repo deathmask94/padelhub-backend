@@ -2,8 +2,8 @@
   "openapi": "3.0.0",
   "info": {
     "title": "PadelHub API - Sistema de Gestión de Partidos",
-    "version": "1.0.0",
-    "description": "Documentación técnica oficial completa del backend para el proyecto de título PadelHub. Refleja con total exactitud las 9 consultas activas del entorno de Postman."
+    "version": "1.1.0",
+    "description": "Documentación técnica oficial del backend PadelHub."
   },
   "servers": [
     {
@@ -11,107 +11,204 @@
       "description": "Servidor Local de Desarrollo"
     }
   ],
+  "tags": [
+    { "name": "1. Autenticación", "description": "Login y recuperación de contraseña" },
+    { "name": "2. Usuarios", "description": "Registro, consulta y eliminación de jugadores" },
+    { "name": "3. Perfil", "description": "Perfil deportivo, edición y foto" },
+    { "name": "4. Partidos", "description": "Creación y consulta de partidos" }
+  ],
   "paths": {
-    "/users": {
+    "/auth/login": {
       "post": {
-        "tags": ["1. Gestión de Usuarios y Autenticación"],
-        "summary": "POST: Crear Usuario",
+        "tags": ["1. Autenticación"],
+        "summary": "Iniciar sesión",
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
+                "required": ["rut", "password"],
                 "properties": {
-                  "rut": { "type": "integer", "example": 12345678 },
-                  "dv_rut": { "type": "string", "example": "5" },
-                  "phone": { "type": "string", "example": "+56912345678" },
-                  "name": { "type": "string", "example": "Felipe Martínez" },
-                  "password": { "type": "string", "example": "clave123" },
-                  "zone": { "type": "string", "example": "Concepción" }
-                },
-                "required": ["rut", "dv_rut", "phone", "name", "password", "zone"]
+                  "rut":      { "type": "integer", "example": 12345678 },
+                  "password": { "type": "string",  "example": "clave123" }
+                }
               }
             }
           }
         },
         "responses": {
-          "201": { "description": "Usuario creado e insertado con éxito" }
-        }
-      },
-      "get": {
-        "tags": ["2. Consultas y Filtros de Jugadores"],
-        "summary": "GET: Ver Todos Los Jugadores",
-        "description": "Retorna la lista completa de usuarios registrados en el sistema.",
-        "responses": {
-          "200": { "description": "Lista de jugadores obtenida correctamente" }
+          "200": { "description": "Login exitoso. Devuelve datos del usuario." },
+          "400": { "description": "RUT o contraseña faltantes." },
+          "401": { "description": "Credenciales incorrectas." }
         }
       }
     },
-    "/users/{rut}": {
-      "get": {
-        "tags": ["2. Consultas y Filtros de Jugadores"],
-        "summary": "GET: Buscar Jugador Por Rut",
-        "parameters": [
-          { "name": "rut", "in": "path", "required": true, "schema": { "type": "integer", "example": 12345678 } }
-        ],
+    "/auth/forgot-password": {
+      "post": {
+        "tags": ["1. Autenticación"],
+        "summary": "Solicitar código de recuperación por SMS",
+        "description": "Genera un código OTP de 6 dígitos con vigencia de 10 minutos y lo envía por SMS al número asociado al RUT.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["rut"],
+                "properties": {
+                  "rut": { "type": "integer", "example": 12345678 }
+                }
+              }
+            }
+          }
+        },
         "responses": {
-          "200": { "description": "Jugador encontrado" },
-          "404": { "description": "Jugador no registrado" }
+          "200": { "description": "Si el RUT existe, se envía el SMS. Respuesta genérica por seguridad." },
+          "400": { "description": "RUT faltante." },
+          "500": { "description": "Error al enviar el SMS." }
+        }
+      }
+    },
+    "/auth/reset-password": {
+      "post": {
+        "tags": ["1. Autenticación"],
+        "summary": "Restablecer contraseña con código OTP",
+        "description": "Verifica el código recibido por SMS y actualiza la contraseña. El código se invalida al usarse.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["rut", "code", "new_password"],
+                "properties": {
+                  "rut":          { "type": "integer", "example": 12345678 },
+                  "code":         { "type": "string",  "example": "483920" },
+                  "new_password": { "type": "string",  "example": "nuevaClave456", "minLength": 6 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Contraseña actualizada correctamente." },
+          "400": { "description": "Campos faltantes, contraseña muy corta, o código inválido/expirado." }
+        }
+      }
+    },
+    "/users": {
+      "post": {
+        "tags": ["2. Usuarios"],
+        "summary": "Registrar nuevo jugador",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["rut", "dv_rut", "phone", "name", "password", "zone"],
+                "properties": {
+                  "rut":      { "type": "integer", "example": 12345678 },
+                  "dv_rut":   { "type": "string",  "example": "5" },
+                  "phone":    { "type": "string",  "example": "+56912345678" },
+                  "name":     { "type": "string",  "example": "Felipe Martínez" },
+                  "password": { "type": "string",  "example": "clave123" },
+                  "zone":     { "type": "string",  "example": "Concepción" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Usuario creado exitosamente." },
+          "400": { "description": "Campos requeridos faltantes." },
+          "409": { "description": "RUT o teléfono ya registrado." }
+        }
+      },
+      "get": {
+        "tags": ["2. Usuarios"],
+        "summary": "Obtener todos los jugadores",
+        "responses": {
+          "200": { "description": "Lista completa de jugadores ordenada por fecha de registro." }
         }
       },
       "delete": {
-        "tags": ["1. Gestión de Usuarios y Autenticación"],
-        "summary": "DEL: Borrar Usuario Por RUT Sin DV",
+        "tags": ["2. Usuarios"],
+        "summary": "Eliminar usuario por RUT",
         "parameters": [
-          { "name": "rut", "in": "path", "required": true, "schema": { "type": "integer", "example": 12345678 } }
+          { "name": "rut", "in": "query", "required": true, "schema": { "type": "integer", "example": 12345678 } }
         ],
         "responses": {
-          "200": { "description": "Usuario eliminado correctamente de Supabase" }
+          "200": { "description": "Usuario eliminado correctamente." },
+          "404": { "description": "Usuario no encontrado." }
         }
       }
     },
-    "/auth/login": {
-      "post": {
-        "tags": ["1. Gestión de Usuarios y Autenticación"],
-        "summary": "POST: Inicio Sesion",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "rut": { "type": "integer", "example": 12345678 },
-                  "password": { "type": "string", "example": "clave123" }
-                },
-                "required": ["rut", "password"]
-              }
-            }
-          }
-        },
+    "/users/search-rut": {
+      "get": {
+        "tags": ["2. Usuarios"],
+        "summary": "Buscar jugador por RUT (query param)",
+        "parameters": [
+          { "name": "rut", "in": "query", "required": true, "schema": { "type": "integer", "example": 12345678 } }
+        ],
         "responses": {
-          "200": { "description": "Login exitoso" }
+          "200": { "description": "Jugador encontrado." },
+          "404": { "description": "Jugador no encontrado." }
         }
       }
     },
     "/users/{rut}/profile": {
       "get": {
-        "tags": ["3. Perfil Deportivo y Estadísticas"],
-        "summary": "GET: Datos Perfil Por Rut",
-        "description": "Consolida la información del perfil del jugador y calcula los partidos jugados en tiempo real.",
+        "tags": ["3. Perfil"],
+        "summary": "Ver perfil y estadísticas",
         "parameters": [
-          { "name": "rut", "in": "path", "required": true, "schema": { "type": "string", "example": "12345678" } }
+          { "name": "rut", "in": "path", "required": true, "schema": { "type": "integer", "example": 12345678 } }
         ],
         "responses": {
-          "200": { "description": "Datos de perfil y stats cargados" }
+          "200": { "description": "Perfil del jugador con estadísticas de partidos." },
+          "404": { "description": "Jugador no encontrado." }
+        }
+      },
+      "patch": {
+        "tags": ["3. Perfil"],
+        "summary": "Editar perfil del jugador",
+        "description": "Actualiza uno o más campos del perfil. Todos los campos son opcionales pero se requiere al menos uno.",
+        "parameters": [
+          { "name": "rut", "in": "path", "required": true, "schema": { "type": "integer", "example": 12345678 } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name":  { "type": "string", "example": "Felipe Martínez" },
+                  "phone": { "type": "string", "example": "+56987654321" },
+                  "zone":  { "type": "string", "example": "Santiago" },
+                  "level": {
+                    "type": "string",
+                    "enum": ["primera", "segunda", "tercera", "cuarta", "quinta", "sexta", "septima_mas"],
+                    "example": "segunda"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Perfil actualizado correctamente." },
+          "400": { "description": "Sin campos para actualizar o nivel inválido." },
+          "404": { "description": "Jugador no encontrado." },
+          "409": { "description": "El teléfono ya está en uso por otro usuario." }
         }
       }
     },
     "/users/{rut}/profile/photo": {
       "post": {
-        "tags": ["4. Gestión de Multimedia (Cloudinary)"],
-        "summary": "POST: Insertar o Cambiar Foto De Perfil",
+        "tags": ["3. Perfil"],
+        "summary": "Subir o cambiar foto de perfil",
         "parameters": [
           { "name": "rut", "in": "path", "required": true, "schema": { "type": "string", "example": "12345678" } }
         ],
@@ -121,53 +218,61 @@
             "multipart/form-data": {
               "schema": {
                 "type": "object",
+                "required": ["file"],
                 "properties": {
                   "file": { "type": "string", "format": "binary" }
-                },
-                "required": ["file"]
+                }
               }
             }
           }
         },
         "responses": {
-          "200": { "description": "Foto guardada con éxito en Cloudinary" }
+          "200": { "description": "Foto guardada en Cloudinary." }
         }
       },
       "delete": {
-        "tags": ["4. Gestión de Multimedia (Cloudinary)"],
-        "summary": "DEL: Borrar Foto Perfil",
+        "tags": ["3. Perfil"],
+        "summary": "Eliminar foto de perfil",
         "parameters": [
           { "name": "rut", "in": "path", "required": true, "schema": { "type": "string", "example": "12345678" } }
         ],
         "responses": {
-          "200": { "description": "Foto removida de la BD y del Storage" }
+          "200": { "description": "Foto eliminada de Cloudinary y BD." }
         }
       }
     },
     "/matches": {
       "post": {
-        "tags": ["5. Gestión de Partidos (Módulos de Juego)"],
-        "summary": "POST: Crear Partido",
+        "tags": ["4. Partidos"],
+        "summary": "Crear partido",
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
+                "required": ["organizer_id", "club", "format", "match_date", "match_time"],
                 "properties": {
                   "organizer_id": { "type": "string", "format": "uuid", "example": "9e094ce9-64a6-44de-7806-744cdbb02695" },
-                  "club": { "type": "string", "example": "Padel Break Club" },
-                  "format": { "type": "string", "enum": ["singles", "doubles"], "example": "doubles" },
-                  "match_date": { "type": "string", "format": "date", "example": "2026-05-20" },
-                  "match_time": { "type": "string", "example": "19:30:00" }
-                },
-                "required": ["organizer_id", "club", "format", "match_date", "match_time"]
+                  "club":         { "type": "string", "example": "Padel Break Club" },
+                  "format":       { "type": "string", "enum": ["singles", "doubles"], "example": "doubles" },
+                  "match_date":   { "type": "string", "format": "date", "example": "2026-05-25" },
+                  "match_time":   { "type": "string", "example": "19:30:00" }
+                }
               }
             }
           }
         },
         "responses": {
-          "201": { "description": "Partido abierto y agendado correctamente en el sistema" }
+          "201": { "description": "Partido creado y agendado correctamente." },
+          "400": { "description": "Campos requeridos faltantes." }
+        }
+      },
+      "get": {
+        "tags": ["4. Partidos"],
+        "summary": "Obtener todos los partidos",
+        "responses": {
+          "200": { "description": "Lista de partidos disponibles." }
         }
       }
     }
