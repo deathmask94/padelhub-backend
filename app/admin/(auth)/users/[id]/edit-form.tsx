@@ -42,7 +42,7 @@ export default function EditForm({ user }: { user: User }) {
           type="text"
           defaultValue={user.name}
           required
-          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-950 focus:outline-none focus:ring-2 focus:ring-indigo-500"
         />
       </div>
 
@@ -53,7 +53,7 @@ export default function EditForm({ user }: { user: User }) {
           type="text"
           defaultValue={user.zone}
           required
-          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-950 focus:outline-none focus:ring-2 focus:ring-indigo-500"
         />
       </div>
 
@@ -62,7 +62,7 @@ export default function EditForm({ user }: { user: User }) {
         <select
           name="level"
           defaultValue={user.level}
-          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-950 focus:outline-none focus:ring-2 focus:ring-indigo-500"
         >
           {LEVELS.map((l) => (
             <option key={l.value} value={l.value}>
@@ -77,7 +77,7 @@ export default function EditForm({ user }: { user: User }) {
         <select
           name="role"
           defaultValue={user.role}
-          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-950 focus:outline-none focus:ring-2 focus:ring-indigo-500"
         >
           <option value="player">Jugador</option>
           <option value="admin">Admin</option>
@@ -89,7 +89,7 @@ export default function EditForm({ user }: { user: User }) {
         <select
           name="is_active"
           defaultValue={user.is_active ? "true" : "false"}
-          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-950 focus:outline-none focus:ring-2 focus:ring-indigo-500"
         >
           <option value="true">Activo</option>
           <option value="false">Inactivo</option>

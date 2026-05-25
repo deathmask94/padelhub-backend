@@ -92,12 +92,12 @@ export default async function UsersPage({
           type="text"
           defaultValue={search}
           placeholder="Buscar por nombre o RUT..."
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 min-w-64"
+          className="border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-950 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 min-w-64"
         />
         <select
           name="level"
           defaultValue={level}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-950 focus:outline-none focus:ring-2 focus:ring-indigo-500"
         >
           <option value="">Todos los niveles</option>
           {Object.entries(LEVEL_LABELS).map(([val, label]) => (
@@ -109,7 +109,7 @@ export default async function UsersPage({
         <select
           name="role"
           defaultValue={role}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-950 focus:outline-none focus:ring-2 focus:ring-indigo-500"
         >
           <option value="">Todos los roles</option>
           <option value="player">Jugador</option>
@@ -118,7 +118,7 @@ export default async function UsersPage({
         <select
           name="active"
           defaultValue={active}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-950 focus:outline-none focus:ring-2 focus:ring-indigo-500"
         >
           <option value="">Todos</option>
           <option value="true">Activos</option>
