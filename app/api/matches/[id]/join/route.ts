@@ -129,7 +129,7 @@ export async function DELETE(
     }
 
     const entry = await prisma.match_players.findUnique({
-      where: { uq_match_player: { match_id, user_id } },
+      where: { match_id_user_id: { match_id, user_id } },
     });
 
     if (!entry) {
@@ -140,7 +140,7 @@ export async function DELETE(
     }
 
     await prisma.match_players.delete({
-      where: { uq_match_player: { match_id, user_id } },
+      where: { match_id_user_id: { match_id, user_id } },
     });
 
     // Si el partido estaba confirmado (lleno), vuelve a "open"
