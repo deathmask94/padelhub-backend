@@ -2,7 +2,7 @@
   "openapi": "3.0.0",
   "info": {
     "title": "PadelHub API - Sistema de Gestión de Partidos",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "description": "Documentación técnica oficial del backend PadelHub."
   },
   "servers": [
@@ -15,7 +15,8 @@
     { "name": "1. Autenticación", "description": "Login y recuperación de contraseña" },
     { "name": "2. Usuarios", "description": "Registro, consulta y eliminación de jugadores" },
     { "name": "3. Perfil", "description": "Perfil deportivo, edición y foto" },
-    { "name": "4. Partidos", "description": "Creación y consulta de partidos" }
+    { "name": "4. Partidos", "description": "Creación y consulta de partidos" },
+    { "name": "5. Invitaciones", "description": "Invitar jugadores y responder invitaciones" }
   ],
   "paths": {
     "/auth/login": {
@@ -294,6 +295,52 @@
         }
       }
     },
+    "/matches/{id}/invite": {
+      "post": {
+        "tags": ["5. Invitaciones"],
+        "summary": "Enviar invitación a un jugador",
+        "description": "Cualquier jugador del partido puede invitar a otro usuario. No se puede invitar si el partido está lleno o no está 'open'.",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "description": "UUID del partido", "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["invited_by", "user_id"],
+                "properties": {
+                  "invited_by": { "type": "string", "format": "uuid", "description": "UUID del jugador que envía la invitación" },
+                  "user_id":    { "type": "string", "format": "uuid", "description": "UUID del jugador invitado" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Invitación enviada correctamente." },
+          "400": { "description": "Partido no disponible, completo, o auto-invitación." },
+          "403": { "description": "El remitente no es jugador del partido." },
+          "404": { "description": "Partido o jugador no encontrado." },
+          "409": { "description": "Ya existe una invitación pendiente para este jugador." }
+        }
+      }
+    },
+    "/matches/{id}/invitations": {
+      "get": {
+        "tags": ["5. Invitaciones"],
+        "summary": "Ver invitaciones enviadas de un partido",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "description": "UUID del partido", "schema": { "type": "string", "format": "uuid" } },
+          { "name": "status", "in": "query", "required": false, "schema": { "type": "string", "enum": ["pending", "accepted", "declined"] } }
+        ],
+        "responses": {
+          "200": { "description": "Lista de invitaciones con datos del invitado e invitador." },
+          "404": { "description": "Partido no encontrado." }
+        }
+      }
+    },
     "/matches/{id}/join": {
       "post": {
         "tags": ["4. Partidos"],
@@ -348,6 +395,52 @@
           "200": { "description": "Jugador eliminado del partido." },
           "400": { "description": "El organizador no puede abandonar el partido." },
           "404": { "description": "Partido no encontrado o jugador no es parte del partido." }
+        }
+      }
+    },
+    "/users/{rut}/invitations": {
+      "get": {
+        "tags": ["5. Invitaciones"],
+        "summary": "Ver invitaciones recibidas por un jugador",
+        "description": "Devuelve las invitaciones del jugador. Por defecto solo las pendientes. Usar ?status=all para ver todas.",
+        "parameters": [
+          { "name": "rut", "in": "path", "required": true, "description": "RUT o UUID del jugador", "schema": { "type": "string" } },
+          { "name": "status", "in": "query", "required": false, "schema": { "type": "string", "enum": ["pending", "accepted", "declined", "all"], "default": "pending" } }
+        ],
+        "responses": {
+          "200": { "description": "Lista de invitaciones con datos del partido e invitador." },
+          "404": { "description": "Jugador no encontrado." }
+        }
+      }
+    },
+    "/invitations/{id}": {
+      "patch": {
+        "tags": ["5. Invitaciones"],
+        "summary": "Aceptar o rechazar una invitación",
+        "description": "Solo el jugador invitado puede responder. Si acepta, queda unido automáticamente al partido.",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "description": "UUID de la invitación", "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["user_id", "status"],
+                "properties": {
+                  "user_id": { "type": "string", "format": "uuid", "description": "UUID del jugador que responde (debe ser el invitado)" },
+                  "status":  { "type": "string", "enum": ["accepted", "declined"] }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Invitación respondida. Si aceptó, queda unido al partido." },
+          "400": { "description": "Invitación ya respondida, partido no disponible o lleno." },
+          "403": { "description": "No tienes permiso para responder esta invitación." },
+          "404": { "description": "Invitación no encontrada." }
         }
       }
     }
