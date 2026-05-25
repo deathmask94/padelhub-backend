@@ -131,7 +131,8 @@ model users {
   match_results  match_results[]
   matches        matches[]
   mmr_history    mmr_history[]
-  refresh_tokens refresh_tokens[]
+  refresh_tokens        refresh_tokens[]
+  password_reset_tokens password_reset_tokens[]
 
   @@unique([rut, dv_rut], map: "uq_rut")
   @@index([is_active], map: "idx_users_active")
