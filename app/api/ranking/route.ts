@@ -1,43 +1,30 @@
-import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import { verifyToken } from '@/lib/jwt';
 
 export async function GET(request: Request) {
   try {
-    const { searchParams } = new URL(request.url);
-    const zone = searchParams.get("zone");
+    const authHeader = request.headers.get('authorization');
+    const token = authHeader?.replace('Bearer ', '');
+    if (!token) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    await verifyToken(token);
 
-    const users = await prisma.users.findMany({
-      where: {
-        is_active: true,
-        ...(zone ? { zone } : {}),
-      },
-      orderBy: { mmr: "desc" },
-      select: {
-        id:      true,
-        rut:     true,
-        dv_rut:  true,
-        name:    true,
-        zone:    true,
-        level:   true,
-        mmr:     true,
-        role:    true,
-      },
+    const { searchParams } = new URL(request.url);
+    const zone  = searchParams.get('zone') ?? undefined;
+    const limit = Math.min(parseInt(searchParams.get('limit') ?? '20'), 50);
+
+    const players = await prisma.users.findMany({
+      where:   { ...(zone ? { zone } : {}), is_active: true },
+      orderBy: { mmr: 'desc' },
+      take:    limit,
+      select:  { id: true, name: true, photo_url: true, level: true, mmr: true, zone: true },
     });
 
-    const ranking = users.map((u, index) => ({
-      position: index + 1,
-      id:       u.id,
-      rut:      u.rut,
-      dv_rut:   u.dv_rut,
-      name:     u.name,
-      zone:     u.zone,
-      level:    u.level,
-      mmr:      u.mmr,
-    }));
-
-    return NextResponse.json(ranking);
-  } catch (error: unknown) {
-    console.error("[RANKING GET]", error);
-    return NextResponse.json({ error: "Error al obtener el ranking" }, { status: 500 });
+    return NextResponse.json(
+      players.map((p, i) => ({ position: i + 1, ...p }))
+    );
+  } catch (error) {
+    console.error('[RANKING GET]', error);
+    return NextResponse.json({ error: 'Error al obtener el ranking' }, { status: 500 });
   }
 }

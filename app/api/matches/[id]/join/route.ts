@@ -52,7 +52,7 @@ export async function POST(request: Request, context: Params) {
         match_id: matchId,
         user_id:  userId,
         team:     activePlayers % 2 === 0 ? 'team_a' : 'team_b',
-        status:   'pending',
+        status:   'confirmed',
       },
     });
 

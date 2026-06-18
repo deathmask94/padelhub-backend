@@ -7,10 +7,7 @@ export async function GET(_request: Request, context: Params) {
   try {
     const { rut } = await context.params;
 
-    const player = await prisma.users.findFirst({
-      where: { rut: parseInt(rut) },
-    });
-
+    const player = await prisma.users.findFirst({ where: { rut: parseInt(rut) } });
     if (!player) {
       return NextResponse.json(
         { error: `No se encontró ningún jugador con el RUT ${rut}` },
@@ -18,9 +15,38 @@ export async function GET(_request: Request, context: Params) {
       );
     }
 
-    const totalMatches = await prisma.match_players.count({
-      where: { user_id: player.id },
-    });
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+    const [
+      matchesPlayed,
+      wins,
+      rankingPosition,
+      totalInZone,
+      recentSum,
+      chartRaw,
+      lastMatchRaw,
+    ] = await Promise.all([
+      prisma.mmr_history.count({ where: { user_id: player.id } }),
+      prisma.mmr_history.count({ where: { user_id: player.id, delta: { gt: 0 } } }),
+      prisma.users.count({ where: { zone: player.zone, mmr: { gt: player.mmr } } }),
+      prisma.users.count({ where: { zone: player.zone } }),
+      prisma.mmr_history.aggregate({
+        where: { user_id: player.id, calculated_at: { gte: thirtyDaysAgo } },
+        _sum: { delta: true },
+      }),
+      prisma.mmr_history.findMany({
+        where:   { user_id: player.id },
+        orderBy: { calculated_at: 'desc' },
+        take:    7,
+        select:  { mmr_after: true },
+      }),
+      prisma.mmr_history.findMany({
+        where:   { user_id: player.id },
+        orderBy: { calculated_at: 'desc' },
+        take:    5,
+        include: { matches: { select: { club: true, match_date: true } } },
+      }),
+    ]);
 
     const { password_hash, ...userResponse } = player;
 
@@ -36,7 +62,20 @@ export async function GET(_request: Request, context: Params) {
         mmr:        userResponse.mmr,
         created_at: userResponse.created_at,
       },
-      stats: { matches_played: totalMatches },
+      stats: {
+        matches_played:    matchesPlayed,
+        wins,
+        ranking_position:  rankingPosition + 1,
+        total_in_zone:     totalInZone,
+        mmr_variation_30d: recentSum._sum.delta ?? 0,
+        mmr_chart:         chartRaw.reverse().map((h) => h.mmr_after),
+        last_matches:      lastMatchRaw.map((h) => ({
+          club:  h.matches.club,
+          date:  h.matches.match_date,
+          delta: h.delta,
+          win:   h.delta > 0,
+        })),
+      },
     });
   } catch (error: unknown) {
     console.error("[PROFILE GET]", error);
@@ -45,6 +84,16 @@ export async function GET(_request: Request, context: Params) {
 }
 
 const VALID_LEVELS = ["primera","segunda","tercera","cuarta","quinta","sexta","septima_mas"];
+
+const LEVEL_BASE_MMR: Record<string, number> = {
+  primera:     2000,
+  segunda:     1600,
+  tercera:     1000,
+  cuarta:       800,
+  quinta:       600,
+  sexta:        400,
+  septima_mas:  200,
+};
 
 export async function PUT(request: Request, context: Params) {
   try {
@@ -82,7 +131,7 @@ export async function PUT(request: Request, context: Params) {
       data: {
         ...(name  ? { name }  : {}),
         ...(zone  ? { zone }  : {}),
-        ...(level ? { level } : {}),
+        ...(level ? { level, mmr: LEVEL_BASE_MMR[level] } : {}),
         updated_at: new Date(),
       },
     });

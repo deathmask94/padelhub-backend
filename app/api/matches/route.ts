@@ -17,9 +17,9 @@ export async function POST(request: Request) {
       );
     }
 
-    // Convertir los strings de fecha y hora a formatos aceptados por Prisma/PostgreSQL
+    // match_date: "2026-06-18", match_time: "2026-06-18T14:00:00"
     const formattedDate = new Date(match_date);
-    const formattedTime = new Date(`${match_date}T${match_time}`);
+    const formattedTime = new Date(match_time);
 
     // Crear el partido en la base de datos
     const newMatch = await prisma.matches.create({
@@ -46,24 +46,57 @@ export async function POST(request: Request) {
   }
 }
 
+const MAX_PLAYERS: Record<string, number> = { doubles: 4, singles: 2 };
+
 // ==========================================
-// 2. GET: Obtener todos los partidos disponibles
+// 2. GET: Obtener partidos disponibles (con filtros)
 // ==========================================
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const allMatches = await prisma.matches.findMany({
+    const { searchParams } = new URL(request.url);
+    const zone   = searchParams.get("zone");
+    const format = searchParams.get("format");
+    const date   = searchParams.get("date"); // "today" | "week"
+
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const dateWhere: { gte: Date; lt?: Date } = { gte: today };
+    if (date === "today") {
+      const t = new Date(today); t.setDate(t.getDate() + 1);
+      dateWhere.lt = t;
+    } else if (date === "week") {
+      const t = new Date(today); t.setDate(t.getDate() + 7);
+      dateWhere.lt = t;
+    }
+
+    const matches = await prisma.matches.findMany({
+      where: {
+        status:     "open",
+        match_date: dateWhere,
+        ...(format ? { format: format as never } : {}),
+        ...(zone   ? { users: { zone } }          : {}),
+      },
       include: {
-        users: { // Trae los datos básicos del organizador
-          select: { name: true, phone: true }
-        }
+        users: { select: { name: true, level: true, mmr: true, photo_url: true, zone: true } },
+        match_players: {
+          where: { status: { notIn: ["rejected", "removed"] } },
+          select: { id: true },
+        },
       },
       orderBy: { match_date: "asc" },
     });
-    return NextResponse.json(allMatches);
-  } catch (error: any) {
-    return NextResponse.json(
-      { error: "Error al obtener los partidos", details: error.message },
-      { status: 500 }
-    );
+
+    const result = matches
+      .map((m) => {
+        const maxPlayers    = MAX_PLAYERS[m.format] ?? 4;
+        const playerCount   = m.match_players.length + 1; // +1 organizer
+        const availableSlots = maxPlayers - playerCount;
+        return { ...m, max_players: maxPlayers, player_count: playerCount, available_slots: availableSlots };
+      })
+      .filter((m) => m.available_slots > 0);
+
+    return NextResponse.json(result);
+  } catch (error: unknown) {
+    console.error("[MATCHES GET]", error);
+    return NextResponse.json({ error: "Error al obtener los partidos" }, { status: 500 });
   }
 }

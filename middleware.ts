@@ -13,7 +13,9 @@ const CORS_HEADERS = {
 function isPublicRoute(pathname: string, method: string): boolean {
   if (pathname === '/api/auth/login')   return true;
   if (pathname === '/api/auth/logout')  return true;
-  if (pathname === '/api/auth/refresh') return true;
+  if (pathname === '/api/auth/refresh')         return true;
+  if (pathname === '/api/auth/forgot-password') return true;
+  if (pathname === '/api/auth/reset-password')  return true;
   if (pathname === '/api/users' && method === 'POST') return true;
   if (pathname === '/api/test-db') return true;
   if (pathname === '/api/ranking') return true;

@@ -36,13 +36,25 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { rut, dv_rut, phone, name, password, zone } = body;
+    const { rut, dv_rut, phone, name, password, zone, email } = body;
 
     if (!rut || !dv_rut || !phone || !name || !password || !zone) {
       return NextResponse.json(
         { error: "Faltan campos obligatorios en el formulario" },
         { status: 400 }
       );
+    }
+
+    if (email) {
+      const existingEmail = await prisma.users.findFirst({
+        where: { email: email.toLowerCase().trim() },
+      });
+      if (existingEmail) {
+        return NextResponse.json(
+          { error: "El email ya se encuentra registrado" },
+          { status: 400 }
+        );
+      }
     }
 
     const existingPhone = await prisma.users.findUnique({ where: { phone } });
@@ -71,8 +83,9 @@ export async function POST(request: Request) {
 
     const newUser = await prisma.users.create({
       data: {
-        rut: parseInt(rut),
-        dv_rut: dv_rut.toString().toUpperCase(),
+        rut:           parseInt(rut),
+        dv_rut:        dv_rut.toString().toUpperCase(),
+        email:         email ? email.toLowerCase().trim() : null,
         phone,
         name,
         password_hash: hashedPassword,
