@@ -1,26 +1,14 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-export async function GET(
-  request: Request,
-  context: { params: Promise<{ rut: string }> } 
-) {
+type Params = { params: Promise<{ rut: string }> };
+
+export async function GET(_request: Request, context: Params) {
   try {
-    // 1. Esperamos a que los parámetros de la URL se resuelvan por completo
     const { rut } = await context.params;
 
-    if (!rut) {
-      return NextResponse.json(
-        { error: "El RUT es requerido en la URL" },
-        { status: 400 }
-      );
-    }
-
-    // 2. Buscar al usuario por su RUT
     const player = await prisma.users.findFirst({
-      where: {
-        rut: parseInt(rut),
-      },
+      where: { rut: parseInt(rut) },
     });
 
     if (!player) {
@@ -30,40 +18,79 @@ export async function GET(
       );
     }
 
-    // 3. Contar cuántos partidos ha jugado
     const totalMatches = await prisma.match_players.count({
-      where: {
-        user_id: player.id,
+      where: { user_id: player.id },
+    });
+
+    const { password_hash, ...userResponse } = player;
+
+    return NextResponse.json({
+      profile: {
+        id:         userResponse.id,
+        name:       userResponse.name,
+        rut:        `${userResponse.rut}-${userResponse.dv_rut}`,
+        phone:      userResponse.phone,
+        photo_url:  userResponse.photo_url,
+        zone:       userResponse.zone,
+        level:      userResponse.level,
+        mmr:        userResponse.mmr,
+        created_at: userResponse.created_at,
+      },
+      stats: { matches_played: totalMatches },
+    });
+  } catch (error: unknown) {
+    console.error("[PROFILE GET]", error);
+    return NextResponse.json({ error: "Error al cargar el perfil" }, { status: 500 });
+  }
+}
+
+const VALID_LEVELS = ["primera","segunda","tercera","cuarta","quinta","sexta","septima_mas"];
+
+export async function PUT(request: Request, context: Params) {
+  try {
+    const { rut } = await context.params;
+    const body = await request.json();
+    const { name, zone, level } = body;
+
+    if (!name && !zone && !level) {
+      return NextResponse.json(
+        { error: "Debes enviar al menos un campo para actualizar" },
+        { status: 400 }
+      );
+    }
+
+    if (level && !VALID_LEVELS.includes(level)) {
+      return NextResponse.json(
+        { error: `Nivel inválido. Valores permitidos: ${VALID_LEVELS.join(", ")}` },
+        { status: 400 }
+      );
+    }
+
+    const player = await prisma.users.findFirst({
+      where: { rut: parseInt(rut) },
+    });
+
+    if (!player) {
+      return NextResponse.json(
+        { error: `No se encontró ningún jugador con el RUT ${rut}` },
+        { status: 404 }
+      );
+    }
+
+    const updated = await prisma.users.update({
+      where: { id: player.id },
+      data: {
+        ...(name  ? { name }  : {}),
+        ...(zone  ? { zone }  : {}),
+        ...(level ? { level } : {}),
+        updated_at: new Date(),
       },
     });
 
-    // 4. Limpiar datos sensibles
-    const { password_hash, ...userResponse } = player;
-
-    // 5. Enviar la respuesta estructurada para el front
-    return NextResponse.json(
-      {
-        profile: {
-          id: userResponse.id,
-          name: userResponse.name,
-          rut: `${userResponse.rut}-${userResponse.dv_rut}`,
-          phone: userResponse.phone,
-          zone: userResponse.zone,
-          level: userResponse.level,
-          mmr: userResponse.mmr,
-          created_at: userResponse.created_at,
-        },
-        stats: {
-          matches_played: totalMatches,
-        }
-      },
-      { status: 200 }
-    );
-
-  } catch (error: any) {
-    return NextResponse.json(
-      { error: "Error en el servidor al cargar el perfil", details: error.message },
-      { status: 500 }
-    );
+    const { password_hash, ...userResponse } = updated;
+    return NextResponse.json({ user: userResponse });
+  } catch (error: unknown) {
+    console.error("[PROFILE PUT]", error);
+    return NextResponse.json({ error: "Error al actualizar el perfil" }, { status: 500 });
   }
 }

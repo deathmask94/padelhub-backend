@@ -1,33 +1,43 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import { signToken } from "@/lib/jwt";
 
-// ==========================================
-// 1. GET: Obtener todos los usuarios 
-// ==========================================
 export async function GET() {
   try {
     const players = await prisma.users.findMany({
       orderBy: { created_at: "desc" },
+      select: {
+        id: true,
+        rut: true,
+        dv_rut: true,
+        phone: true,
+        name: true,
+        photo_url: true,
+        level: true,
+        zone: true,
+        mmr: true,
+        role: true,
+        is_active: true,
+        created_at: true,
+        updated_at: true,
+      },
     });
     return NextResponse.json(players);
-  } catch (error: any) {
+  } catch (error: unknown) {
+    console.error("[USERS GET ERROR]", error);
     return NextResponse.json(
-      { error: "Error al obtener usuarios", details: error.message },
+      { error: "Error al obtener usuarios" },
       { status: 500 }
     );
   }
 }
 
-// ==========================================
-// 2. POST: Registro Usuario
-// ==========================================
 export async function POST(request: Request) {
   try {
     const body = await request.json();
     const { rut, dv_rut, phone, name, password, zone } = body;
 
-    // Validación básica de campos requeridos
     if (!rut || !dv_rut || !phone || !name || !password || !zone) {
       return NextResponse.json(
         { error: "Faltan campos obligatorios en el formulario" },
@@ -35,11 +45,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // Validación 1: Verificar si el teléfono ya existe 
-    const existingPhone = await prisma.users.findUnique({
-      where: { phone },
-    });
-
+    const existingPhone = await prisma.users.findUnique({ where: { phone } });
     if (existingPhone) {
       return NextResponse.json(
         { error: "El número de teléfono ya se encuentra registrado" },
@@ -47,14 +53,12 @@ export async function POST(request: Request) {
       );
     }
 
-    // Validación 2: Verificar si el RUT ya existe (Evitar duplicados)
     const existingRut = await prisma.users.findFirst({
       where: {
         rut: parseInt(rut),
         dv_rut: dv_rut.toString().toUpperCase(),
       },
     });
-
     if (existingRut) {
       return NextResponse.json(
         { error: "El RUT ingresado ya se encuentra registrado" },
@@ -62,11 +66,9 @@ export async function POST(request: Request) {
       );
     }
 
-    // Encriptar la contraseña antes de guardarla
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Insertar el nuevo jugador en Supabase
     const newUser = await prisma.users.create({
       data: {
         rut: parseInt(rut),
@@ -75,29 +77,35 @@ export async function POST(request: Request) {
         name,
         password_hash: hashedPassword,
         zone,
-        // Los enums y defaults (level, role, mmr) se asignan solos gracias a schema.prisma
       },
     });
 
-    // Seguridad básica: No devolver el hash de la contraseña en la respuesta de la API
+    const token = await signToken({ userId: newUser.id, role: newUser.role });
+
+    const refreshToken = crypto.randomUUID();
+    await prisma.refresh_tokens.create({
+      data: {
+        user_id:    newUser.id,
+        token:      refreshToken,
+        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      },
+    });
+
     const { password_hash, ...userResponse } = newUser;
 
     return NextResponse.json(
-      { message: "¡Jugador registrado con éxito!", user: userResponse },
+      { message: "¡Jugador registrado con éxito!", user: userResponse, token, refreshToken },
       { status: 201 }
     );
-
-  } catch (error: any) {
+  } catch (error: unknown) {
+    console.error("[USERS POST ERROR]", error);
     return NextResponse.json(
-      { error: "Hubo un fallo en el servidor al registrar", details: error.message },
+      { error: "Hubo un fallo en el servidor al registrar" },
       { status: 500 }
     );
   }
 }
 
-// ==========================================
-// 3. DELETE: Eliminar un jugador por su RUT
-// ==========================================
 export async function DELETE(request: Request) {
   try {
     const body = await request.json();
@@ -110,7 +118,6 @@ export async function DELETE(request: Request) {
       );
     }
 
-    // 1. Verificar si el usuario existe por su RUT
     const userExists = await prisma.users.findFirst({
       where: { rut: parseInt(rut) },
     });
@@ -122,22 +129,16 @@ export async function DELETE(request: Request) {
       );
     }
 
-    // 2. Eliminar al jugador
-    await prisma.users.delete({
-      where: { id: userExists.id }, // Prisma necesita el ID (PK) para borrar de forma segura
-    });
+    await prisma.users.delete({ where: { id: userExists.id } });
 
     return NextResponse.json(
-      { message: `Jugador '${userExists.name}' con RUT ${rut}-${userExists.dv_rut} eliminado con éxito` },
+      { message: `Jugador '${userExists.name}' eliminado con éxito` },
       { status: 200 }
     );
-
-  } catch (error: any) {
+  } catch (error: unknown) {
+    console.error("[USERS DELETE ERROR]", error);
     return NextResponse.json(
-      { 
-        error: "No se pudo eliminar al jugador", 
-        details: error.message 
-      },
+      { error: "No se pudo eliminar al jugador" },
       { status: 500 }
     );
   }

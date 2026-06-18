@@ -1,14 +1,13 @@
 import { NextResponse } from "next/server";
-import { prisma } from "../../../../lib/prisma"; 
+import { prisma } from "../../../../lib/prisma";
 import bcrypt from "bcryptjs";
+import { signToken } from "../../../../lib/jwt";
 
 export async function POST(request: Request) {
   try {
-    // 1. Leer los datos enviados por el frontend desde el Body
     const body = await request.json();
     const { rut, password } = body;
 
-    // Validación básica de campos vacíos
     if (!rut || !password) {
       return NextResponse.json(
         { error: "El RUT y la contraseña son obligatorios" },
@@ -16,24 +15,18 @@ export async function POST(request: Request) {
       );
     }
 
-    // 2. Buscar si el usuario existe en la base de datos usando el RUT
     const player = await prisma.users.findFirst({
-      where: {
-        rut: parseInt(rut),
-      },
+      where: { rut: parseInt(rut), is_active: true },
     });
 
-    // Si no existe, mandamos un error genérico (por seguridad, no es bueno decir exactamente qué falló)
     if (!player) {
       return NextResponse.json(
         { error: "RUT o contraseña incorrectos" },
-        { status: 401 } // 401 significa No Autorizado
+        { status: 401 }
       );
     }
 
-    // 3. Comparar la contraseña que metió el usuario con el hash guardado en la base de datos
     const isPasswordValid = await bcrypt.compare(password, player.password_hash);
-
     if (!isPasswordValid) {
       return NextResponse.json(
         { error: "RUT o contraseña incorrectos" },
@@ -41,21 +34,27 @@ export async function POST(request: Request) {
       );
     }
 
-    // 4. Si todo está perfecto, limpiamos el hash de la contraseña por seguridad
+    const token = await signToken({ userId: player.id, role: player.role });
+
+    const refreshToken = crypto.randomUUID();
+    await prisma.refresh_tokens.create({
+      data: {
+        user_id: player.id,
+        token: refreshToken,
+        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      },
+    });
+
     const { password_hash, ...userResponse } = player;
 
-    // 5. Devolver la respuesta de éxito junto con los datos del usuario logueado
     return NextResponse.json(
-      {
-        message: "¡Inicio de sesión exitoso!",
-        user: userResponse,
-      },
+      { message: "¡Inicio de sesión exitoso!", user: userResponse, token, refreshToken },
       { status: 200 }
     );
-
-  } catch (error: any) {
+  } catch (error: unknown) {
+    console.error("[LOGIN ERROR]", error);
     return NextResponse.json(
-      { error: "Error en el servidor al intentar iniciar sesión", details: error.message },
+      { error: "Error en el servidor al intentar iniciar sesión" },
       { status: 500 }
     );
   }
