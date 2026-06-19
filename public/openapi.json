@@ -1,175 +1,715 @@
 {
   "openapi": "3.0.0",
   "info": {
-    "title": "PadelHub API - Sistema de Gestión de Partidos",
-    "version": "1.0.0",
-    "description": "Documentación técnica oficial completa del backend para el proyecto de título PadelHub. Refleja con total exactitud las 9 consultas activas del entorno de Postman."
+    "title": "PadelHub API",
+    "version": "2.0.0",
+    "description": "Documentación oficial de la API PadelHub. Todos los endpoints requieren Bearer JWT salvo los marcados como públicos."
   },
   "servers": [
-    {
-      "url": "http://localhost:3000/api",
-      "description": "Servidor Local de Desarrollo"
-    }
+    { "url": "http://localhost:3000/api", "description": "Desarrollo local" }
   ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": { "type": "http", "scheme": "bearer", "bearerFormat": "JWT" }
+    }
+  },
+  "security": [{ "bearerAuth": [] }],
   "paths": {
-    "/users": {
-      "post": {
-        "tags": ["1. Gestión de Usuarios y Autenticación"],
-        "summary": "POST: Crear Usuario",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "rut": { "type": "integer", "example": 12345678 },
-                  "dv_rut": { "type": "string", "example": "5" },
-                  "phone": { "type": "string", "example": "+56912345678" },
-                  "name": { "type": "string", "example": "Felipe Martínez" },
-                  "password": { "type": "string", "example": "clave123" },
-                  "zone": { "type": "string", "example": "Concepción" }
-                },
-                "required": ["rut", "dv_rut", "phone", "name", "password", "zone"]
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": { "description": "Usuario creado e insertado con éxito" }
-        }
-      },
-      "get": {
-        "tags": ["2. Consultas y Filtros de Jugadores"],
-        "summary": "GET: Ver Todos Los Jugadores",
-        "description": "Retorna la lista completa de usuarios registrados en el sistema.",
-        "responses": {
-          "200": { "description": "Lista de jugadores obtenida correctamente" }
-        }
-      }
-    },
-    "/users/{rut}": {
-      "get": {
-        "tags": ["2. Consultas y Filtros de Jugadores"],
-        "summary": "GET: Buscar Jugador Por Rut",
-        "parameters": [
-          { "name": "rut", "in": "path", "required": true, "schema": { "type": "integer", "example": 12345678 } }
-        ],
-        "responses": {
-          "200": { "description": "Jugador encontrado" },
-          "404": { "description": "Jugador no registrado" }
-        }
-      },
-      "delete": {
-        "tags": ["1. Gestión de Usuarios y Autenticación"],
-        "summary": "DEL: Borrar Usuario Por RUT Sin DV",
-        "parameters": [
-          { "name": "rut", "in": "path", "required": true, "schema": { "type": "integer", "example": 12345678 } }
-        ],
-        "responses": {
-          "200": { "description": "Usuario eliminado correctamente de Supabase" }
-        }
-      }
-    },
+
     "/auth/login": {
       "post": {
-        "tags": ["1. Gestión de Usuarios y Autenticación"],
-        "summary": "POST: Inicio Sesion",
+        "tags": ["1. Autenticación"],
+        "summary": "Inicio de sesión de jugador",
+        "security": [],
         "requestBody": {
           "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "rut": { "type": "integer", "example": 12345678 },
-                  "password": { "type": "string", "example": "clave123" }
-                },
-                "required": ["rut", "password"]
-              }
+          "content": { "application/json": { "schema": {
+            "type": "object",
+            "required": ["rut", "password"],
+            "properties": {
+              "rut":      { "type": "integer", "example": 12345678 },
+              "password": { "type": "string",  "example": "clave123" }
             }
-          }
+          }}}
         },
         "responses": {
-          "200": { "description": "Login exitoso" }
+          "200": { "description": "Login exitoso — retorna token JWT y datos del usuario" },
+          "401": { "description": "Credenciales incorrectas o cuenta inactiva" }
         }
       }
     },
-    "/users/{rut}/profile": {
-      "get": {
-        "tags": ["3. Perfil Deportivo y Estadísticas"],
-        "summary": "GET: Datos Perfil Por Rut",
-        "description": "Consolida la información del perfil del jugador y calcula los partidos jugados en tiempo real.",
-        "parameters": [
-          { "name": "rut", "in": "path", "required": true, "schema": { "type": "string", "example": "12345678" } }
-        ],
-        "responses": {
-          "200": { "description": "Datos de perfil y stats cargados" }
-        }
-      }
-    },
-    "/users/{rut}/profile/photo": {
+
+    "/auth/logout": {
       "post": {
-        "tags": ["4. Gestión de Multimedia (Cloudinary)"],
-        "summary": "POST: Insertar o Cambiar Foto De Perfil",
-        "parameters": [
-          { "name": "rut", "in": "path", "required": true, "schema": { "type": "string", "example": "12345678" } }
-        ],
+        "tags": ["1. Autenticación"],
+        "summary": "Cierre de sesión — invalida el refresh token",
         "requestBody": {
           "required": true,
-          "content": {
-            "multipart/form-data": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "file": { "type": "string", "format": "binary" }
-                },
-                "required": ["file"]
-              }
-            }
-          }
+          "content": { "application/json": { "schema": {
+            "type": "object",
+            "properties": { "refreshToken": { "type": "string" } }
+          }}}
         },
         "responses": {
-          "200": { "description": "Foto guardada con éxito en Cloudinary" }
+          "200": { "description": "Sesión cerrada correctamente" }
+        }
+      }
+    },
+
+    "/auth/refresh": {
+      "post": {
+        "tags": ["1. Autenticación"],
+        "summary": "Renueva el access token usando el refresh token",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": {
+            "type": "object",
+            "required": ["refreshToken"],
+            "properties": { "refreshToken": { "type": "string" } }
+          }}}
+        },
+        "responses": {
+          "200": { "description": "Nuevo token y refresh token rotado" },
+          "401": { "description": "Refresh token inválido o expirado" }
+        }
+      }
+    },
+
+    "/auth/forgot-password": {
+      "post": {
+        "tags": ["1. Autenticación"],
+        "summary": "Solicita email de recuperación de contraseña",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": {
+            "type": "object",
+            "required": ["email"],
+            "properties": { "email": { "type": "string", "format": "email", "example": "jugador@email.cl" } }
+          }}}
+        },
+        "responses": {
+          "200": { "description": "Email enviado (respuesta siempre 200 por seguridad)" }
+        }
+      }
+    },
+
+    "/auth/reset-password": {
+      "post": {
+        "tags": ["1. Autenticación"],
+        "summary": "Restablece la contraseña con el token del email",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": {
+            "type": "object",
+            "required": ["token", "password"],
+            "properties": {
+              "token":    { "type": "string" },
+              "password": { "type": "string", "example": "nuevaClave123" }
+            }
+          }}}
+        },
+        "responses": {
+          "200": { "description": "Contraseña actualizada correctamente" },
+          "400": { "description": "Token inválido o expirado" }
+        }
+      }
+    },
+
+    "/users": {
+      "post": {
+        "tags": ["2. Usuarios"],
+        "summary": "Registrar nuevo jugador",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": {
+            "type": "object",
+            "required": ["rut","dv_rut","phone","name","password","zone"],
+            "properties": {
+              "rut":      { "type": "integer", "example": 12345678 },
+              "dv_rut":   { "type": "string",  "example": "5" },
+              "phone":    { "type": "string",  "example": "+56912345678" },
+              "name":     { "type": "string",  "example": "Felipe Martínez" },
+              "password": { "type": "string",  "example": "clave123" },
+              "zone":     { "type": "string",  "example": "Viña del Mar" }
+            }
+          }}}
+        },
+        "responses": {
+          "201": { "description": "Usuario registrado — retorna token JWT" },
+          "409": { "description": "RUT o teléfono ya registrado" }
+        }
+      },
+      "get": {
+        "tags": ["2. Usuarios"],
+        "summary": "Listar todos los jugadores activos",
+        "responses": { "200": { "description": "Lista de jugadores" } }
+      }
+    },
+
+    "/users/{rut}": {
+      "get": {
+        "tags": ["2. Usuarios"],
+        "summary": "Obtener jugador por RUT",
+        "parameters": [{ "name": "rut", "in": "path", "required": true, "schema": { "type": "integer", "example": 12345678 } }],
+        "responses": {
+          "200": { "description": "Jugador encontrado" },
+          "404": { "description": "Jugador no encontrado" }
         }
       },
       "delete": {
-        "tags": ["4. Gestión de Multimedia (Cloudinary)"],
-        "summary": "DEL: Borrar Foto Perfil",
-        "parameters": [
-          { "name": "rut", "in": "path", "required": true, "schema": { "type": "string", "example": "12345678" } }
-        ],
+        "tags": ["2. Usuarios"],
+        "summary": "Eliminar jugador por RUT",
+        "parameters": [{ "name": "rut", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": { "200": { "description": "Usuario eliminado" } }
+      }
+    },
+
+    "/users/{rut}/profile": {
+      "get": {
+        "tags": ["2. Usuarios"],
+        "summary": "Perfil completo y estadísticas del jugador",
+        "parameters": [{ "name": "rut", "in": "path", "required": true, "schema": { "type": "string", "example": "12345678" } }],
+        "responses": { "200": { "description": "Perfil y stats (ranking, MMR, partidos)" } }
+      },
+      "patch": {
+        "tags": ["2. Usuarios"],
+        "summary": "Actualizar datos de perfil",
+        "parameters": [{ "name": "rut", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": {
+          "content": { "application/json": { "schema": {
+            "type": "object",
+            "properties": {
+              "name":  { "type": "string" },
+              "zone":  { "type": "string" },
+              "level": { "type": "string" },
+              "reminder_enabled": { "type": "boolean" }
+            }
+          }}}
+        },
+        "responses": { "200": { "description": "Perfil actualizado" } }
+      }
+    },
+
+    "/users/{rut}/profile/photo": {
+      "post": {
+        "tags": ["3. Multimedia"],
+        "summary": "Subir o reemplazar foto de perfil (Cloudinary)",
+        "parameters": [{ "name": "rut", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": {
+          "required": true,
+          "content": { "multipart/form-data": { "schema": {
+            "type": "object",
+            "properties": { "file": { "type": "string", "format": "binary" } }
+          }}}
+        },
         "responses": {
-          "200": { "description": "Foto removida de la BD y del Storage" }
+          "200": { "description": "Foto subida — retorna photo_url" },
+          "400": { "description": "No se envió archivo" }
+        }
+      },
+      "delete": {
+        "tags": ["3. Multimedia"],
+        "summary": "Eliminar foto de perfil",
+        "parameters": [{ "name": "rut", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Foto eliminada de Cloudinary y BD" } }
+      }
+    },
+
+    "/users/{rut}/mmr-history": {
+      "get": {
+        "tags": ["2. Usuarios"],
+        "summary": "Historial de variaciones de MMR del jugador",
+        "parameters": [{ "name": "rut", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Historial MMR con datos semanales" } }
+      }
+    },
+
+    "/users/{rut}/ratings": {
+      "get": {
+        "tags": ["2. Usuarios"],
+        "summary": "Reputación acumulada del jugador (promedios de valoraciones)",
+        "parameters": [{ "name": "rut", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": { "description": "Promedios de fair play, puntualidad y nivel percibido + total de valoraciones" },
+          "404": { "description": "Jugador no encontrado" }
         }
       }
     },
+
+    "/users/search": {
+      "get": {
+        "tags": ["4. Matchmaking"],
+        "summary": "Buscar rivales con filtros (zona, nivel, MMR, nombre)",
+        "parameters": [
+          { "name": "q",        "in": "query", "schema": { "type": "string" } },
+          { "name": "zone",     "in": "query", "schema": { "type": "string" } },
+          { "name": "level",    "in": "query", "schema": { "type": "string" } },
+          { "name": "mmr_min",  "in": "query", "schema": { "type": "integer" } },
+          { "name": "mmr_max",  "in": "query", "schema": { "type": "integer" } },
+          { "name": "page",     "in": "query", "schema": { "type": "integer", "default": 1 } }
+        ],
+        "responses": { "200": { "description": "Lista paginada de jugadores" } }
+      }
+    },
+
+    "/users/suggestions": {
+      "get": {
+        "tags": ["4. Matchmaking"],
+        "summary": "Sugerencias de rivales con % de compatibilidad MMR",
+        "responses": {
+          "200": { "description": "Lista de rivales ordenada por compatibilidad descendente (rango ±150/300/500)" },
+          "401": { "description": "No autorizado" }
+        }
+      }
+    },
+
+    "/users/search-rut": {
+      "get": {
+        "tags": ["2. Usuarios"],
+        "summary": "Buscar jugador por RUT (para invitaciones)",
+        "parameters": [{ "name": "rut", "in": "query", "required": true, "schema": { "type": "integer" } }],
+        "responses": {
+          "200": { "description": "Jugador encontrado" },
+          "404": { "description": "No encontrado" }
+        }
+      }
+    },
+
     "/matches": {
       "post": {
-        "tags": ["5. Gestión de Partidos (Módulos de Juego)"],
-        "summary": "POST: Crear Partido",
+        "tags": ["5. Partidos"],
+        "summary": "Crear partido",
         "requestBody": {
           "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "organizer_id": { "type": "string", "format": "uuid", "example": "9e094ce9-64a6-44de-7806-744cdbb02695" },
-                  "club": { "type": "string", "example": "Padel Break Club" },
-                  "format": { "type": "string", "enum": ["singles", "doubles"], "example": "doubles" },
-                  "match_date": { "type": "string", "format": "date", "example": "2026-05-20" },
-                  "match_time": { "type": "string", "example": "19:30:00" }
-                },
-                "required": ["organizer_id", "club", "format", "match_date", "match_time"]
-              }
+          "content": { "application/json": { "schema": {
+            "type": "object",
+            "required": ["club","format","match_date","match_time"],
+            "properties": {
+              "club":       { "type": "string",  "example": "Padel Break Club" },
+              "format":     { "type": "string",  "enum": ["singles","doubles"] },
+              "match_date": { "type": "string",  "format": "date", "example": "2026-07-10" },
+              "match_time": { "type": "string",  "example": "19:30:00" }
             }
-          }
+          }}}
         },
         "responses": {
-          "201": { "description": "Partido abierto y agendado correctamente en el sistema" }
+          "201": { "description": "Partido creado" },
+          "401": { "description": "No autorizado" }
+        }
+      },
+      "get": {
+        "tags": ["5. Partidos"],
+        "summary": "Listar partidos disponibles (paginado, con filtros)",
+        "parameters": [
+          { "name": "status", "in": "query", "schema": { "type": "string" } },
+          { "name": "zone",   "in": "query", "schema": { "type": "string" } },
+          { "name": "page",   "in": "query", "schema": { "type": "integer" } }
+        ],
+        "responses": { "200": { "description": "Lista de partidos" } }
+      }
+    },
+
+    "/matches/my": {
+      "get": {
+        "tags": ["5. Partidos"],
+        "summary": "Partidos del usuario autenticado (organizador o jugador)",
+        "responses": { "200": { "description": "Partidos propios" } }
+      }
+    },
+
+    "/matches/{id}": {
+      "get": {
+        "tags": ["5. Partidos"],
+        "summary": "Detalle completo de un partido",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": {
+          "200": { "description": "Detalle con jugadores, resultado, can_rate, has_rated" },
+          "404": { "description": "Partido no encontrado" }
+        }
+      }
+    },
+
+    "/matches/{id}/join": {
+      "post": {
+        "tags": ["5. Partidos"],
+        "summary": "Unirse a un partido abierto",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": { "description": "Unido correctamente" },
+          "400": { "description": "Partido lleno, ya inscrito o no abierto" }
+        }
+      }
+    },
+
+    "/matches/{id}/leave": {
+      "post": {
+        "tags": ["5. Partidos"],
+        "summary": "Abandonar un partido",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": { "description": "Abandonado correctamente" },
+          "403": { "description": "No eres participante" }
+        }
+      }
+    },
+
+    "/matches/{id}/invite": {
+      "post": {
+        "tags": ["5. Partidos"],
+        "summary": "Invitar a un jugador al partido (solo organizador)",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": {
+            "type": "object",
+            "required": ["userId"],
+            "properties": { "userId": { "type": "string", "format": "uuid" } }
+          }}}
+        },
+        "responses": {
+          "201": { "description": "Invitación enviada — notificación in-app y email best-effort" },
+          "403": { "description": "Solo el organizador puede invitar" }
+        }
+      }
+    },
+
+    "/matches/{id}/respond": {
+      "post": {
+        "tags": ["5. Partidos"],
+        "summary": "Aceptar o rechazar invitación a partido",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": {
+            "type": "object",
+            "required": ["action"],
+            "properties": { "action": { "type": "string", "enum": ["accept","reject"] } }
+          }}}
+        },
+        "responses": {
+          "200": { "description": "Respuesta registrada" },
+          "403": { "description": "No tienes invitación pendiente" }
+        }
+      }
+    },
+
+    "/matches/{id}/cancel": {
+      "post": {
+        "tags": ["5. Partidos"],
+        "summary": "Cancelar partido (solo organizador)",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": { "description": "Partido cancelado — notificaciones in-app a jugadores" },
+          "403": { "description": "Solo el organizador puede cancelar" },
+          "400": { "description": "El partido ya está finalizado o cancelado" }
+        }
+      }
+    },
+
+    "/matches/{id}/result": {
+      "post": {
+        "tags": ["5. Partidos"],
+        "summary": "Registrar resultado y aplicar cambios ELO (solo organizador)",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": {
+            "type": "object",
+            "required": ["winner","organizer_team"],
+            "properties": {
+              "winner":         { "type": "string", "enum": ["team_a","team_b","draw"] },
+              "organizer_team": { "type": "string", "enum": ["team_a","team_b"] },
+              "score_team_a":   { "type": "string", "example": "6-3" },
+              "score_team_b":   { "type": "string", "example": "3-6" }
+            }
+          }}}
+        },
+        "responses": {
+          "200": { "description": "Resultado registrado con cambios MMR (K=32)" },
+          "400": { "description": "Partido no confirmado o sin equipos válidos" }
+        }
+      }
+    },
+
+    "/matches/{id}/rate": {
+      "post": {
+        "tags": ["5. Partidos"],
+        "summary": "Valorar compañeros tras un partido finalizado (ventana 24h)",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": {
+            "type": "object",
+            "required": ["ratings"],
+            "properties": {
+              "ratings": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["rated_id","fair_play","punctuality","skill_level"],
+                  "properties": {
+                    "rated_id":    { "type": "string", "format": "uuid" },
+                    "fair_play":   { "type": "integer", "minimum": 1, "maximum": 5 },
+                    "punctuality": { "type": "integer", "minimum": 1, "maximum": 5 },
+                    "skill_level": { "type": "integer", "minimum": 1, "maximum": 5 }
+                  }
+                }
+              }
+            }
+          }}}
+        },
+        "responses": {
+          "200": { "description": "Valoraciones registradas — notificación anónima a cada valorado" },
+          "400": { "description": "Partido no finalizado, auto-valoración o escala inválida" },
+          "403": { "description": "Ventana de 24h expirada o no eres participante" }
+        }
+      }
+    },
+
+    "/notifications": {
+      "get": {
+        "tags": ["6. Notificaciones"],
+        "summary": "Obtener notificaciones del usuario (últimos 30 días)",
+        "responses": {
+          "200": { "description": "Lista de notificaciones + unread_count" },
+          "401": { "description": "No autorizado" }
+        }
+      },
+      "patch": {
+        "tags": ["6. Notificaciones"],
+        "summary": "Marcar todas las notificaciones como leídas",
+        "responses": {
+          "200": { "description": "Todas marcadas como leídas" }
+        }
+      }
+    },
+
+    "/ranking": {
+      "get": {
+        "tags": ["7. Ranking"],
+        "summary": "Leaderboard regional ordenado por MMR descendente (top 50)",
+        "security": [],
+        "parameters": [
+          { "name": "zone", "in": "query", "schema": { "type": "string", "example": "Viña del Mar" } },
+          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } }
+        ],
+        "responses": { "200": { "description": "Top jugadores por zona" } }
+      }
+    },
+
+    "/admin/login": {
+      "post": {
+        "tags": ["8. Admin — Auth"],
+        "summary": "Inicio de sesión del panel de administración",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": {
+            "type": "object",
+            "required": ["rut","password"],
+            "properties": {
+              "rut":      { "type": "integer", "example": 99999999 },
+              "password": { "type": "string",  "example": "admin" }
+            }
+          }}}
+        },
+        "responses": {
+          "200": { "description": "JWT admin 4h — registra en audit log" },
+          "401": { "description": "Credenciales incorrectas o no es admin" }
+        }
+      }
+    },
+
+    "/admin/me": {
+      "get": {
+        "tags": ["8. Admin — Auth"],
+        "summary": "Datos del administrador autenticado",
+        "responses": { "200": { "description": "Perfil del admin (sin password_hash)" } }
+      }
+    },
+
+    "/admin/users": {
+      "get": {
+        "tags": ["9. Admin — Usuarios"],
+        "summary": "Listar usuarios (paginado 20/pág, con filtros)",
+        "parameters": [
+          { "name": "q",      "in": "query", "schema": { "type": "string" } },
+          { "name": "zone",   "in": "query", "schema": { "type": "string" } },
+          { "name": "level",  "in": "query", "schema": { "type": "string" } },
+          { "name": "status", "in": "query", "schema": { "type": "string", "enum": ["active","inactive","all"] } },
+          { "name": "page",   "in": "query", "schema": { "type": "integer" } }
+        ],
+        "responses": { "200": { "description": "Lista paginada de usuarios" } }
+      }
+    },
+
+    "/admin/users/{id}": {
+      "get": {
+        "tags": ["9. Admin — Usuarios"],
+        "summary": "Perfil completo de un usuario con estadísticas",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Usuario con _count de partidos y cambios MMR" } }
+      },
+      "patch": {
+        "tags": ["9. Admin — Usuarios"],
+        "summary": "Modificar is_active, level o zone de un usuario",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": {
+          "content": { "application/json": { "schema": {
+            "type": "object",
+            "properties": {
+              "is_active": { "type": "boolean" },
+              "level":     { "type": "string" },
+              "zone":      { "type": "string" }
+            }
+          }}}
+        },
+        "responses": { "200": { "description": "Usuario actualizado — log en auditoría" } }
+      }
+    },
+
+    "/admin/users/{id}/mmr": {
+      "patch": {
+        "tags": ["9. Admin — Usuarios"],
+        "summary": "Ajuste manual de MMR con motivo obligatorio",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": {
+            "type": "object",
+            "required": ["new_mmr","reason"],
+            "properties": {
+              "new_mmr": { "type": "integer", "minimum": 0, "maximum": 9999, "example": 1150 },
+              "reason":  { "type": "string", "example": "Corrección por error de cálculo en partido del 2026-06-01" }
+            }
+          }}}
+        },
+        "responses": {
+          "200": { "description": "MMR actualizado — entrada en mmr_history, audit log y email al jugador" },
+          "400": { "description": "Motivo vacío o MMR fuera de rango" },
+          "404": { "description": "Usuario no encontrado" }
+        }
+      }
+    },
+
+    "/admin/matches": {
+      "get": {
+        "tags": ["10. Admin — Partidos"],
+        "summary": "Listar partidos con filtros avanzados",
+        "parameters": [
+          { "name": "q",         "in": "query", "schema": { "type": "string" } },
+          { "name": "status",    "in": "query", "schema": { "type": "string" } },
+          { "name": "zone",      "in": "query", "schema": { "type": "string" } },
+          { "name": "date_from", "in": "query", "schema": { "type": "string", "format": "date" } },
+          { "name": "date_to",   "in": "query", "schema": { "type": "string", "format": "date" } },
+          { "name": "page",      "in": "query", "schema": { "type": "integer" } }
+        ],
+        "responses": { "200": { "description": "Lista paginada de partidos" } }
+      }
+    },
+
+    "/admin/matches/{id}": {
+      "get": {
+        "tags": ["10. Admin — Partidos"],
+        "summary": "Detalle de partido: jugadores, resultado, historial MMR",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Detalle completo del partido" } }
+      }
+    },
+
+    "/admin/matches/{id}/annul-result": {
+      "post": {
+        "tags": ["10. Admin — Partidos"],
+        "summary": "Anular resultado y revertir cambios de MMR",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": { "description": "Resultado anulado — MMR revertido en transacción atómica, log en auditoría" },
+          "400": { "description": "El partido no está finalizado o no tiene resultado" }
+        }
+      }
+    },
+
+    "/admin/backup": {
+      "get": {
+        "tags": ["11. Admin — Respaldo"],
+        "summary": "Descargar backup completo de la BD en JSON",
+        "responses": {
+          "200": { "description": "Archivo JSON con todas las tablas (attachment)" }
+        }
+      }
+    },
+
+    "/admin/backup/restore": {
+      "post": {
+        "tags": ["11. Admin — Respaldo"],
+        "summary": "Restaurar BD desde un archivo de backup JSON (upsert, no destructivo)",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": {
+            "type": "object",
+            "description": "Estructura del archivo backup generado por GET /admin/backup"
+          }}}
+        },
+        "responses": {
+          "200": { "description": "Restauración completada — conteo de registros por tabla" },
+          "400": { "description": "Formato de backup inválido" }
+        }
+      }
+    },
+
+    "/admin/metrics": {
+      "get": {
+        "tags": ["12. Admin — Métricas"],
+        "summary": "Métricas generales de la plataforma en tiempo real",
+        "responses": {
+          "200": {
+            "description": "KPIs: usuarios activos, partidos semana, en curso, MMR promedio, top zonas, distribución de niveles"
+          }
+        }
+      }
+    },
+
+    "/admin/audit-logs": {
+      "get": {
+        "tags": ["13. Admin — Auditoría"],
+        "summary": "Log de auditoría paginado (30/pág) con filtros",
+        "parameters": [
+          { "name": "action",    "in": "query", "schema": { "type": "string", "enum": ["ADMIN_LOGIN","USER_UPDATE","MATCH_RESULT_ANNULLED","BACKUP_DOWNLOADED","BACKUP_RESTORED","MMR_ADJUST"] } },
+          { "name": "admin_id",  "in": "query", "schema": { "type": "string" } },
+          { "name": "date_from", "in": "query", "schema": { "type": "string", "format": "date" } },
+          { "name": "date_to",   "in": "query", "schema": { "type": "string", "format": "date" } },
+          { "name": "page",      "in": "query", "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "description": "Logs paginados + lista de admins + catálogo de acciones" }
+        }
+      }
+    },
+
+    "/admin/audit-logs/export": {
+      "get": {
+        "tags": ["13. Admin — Auditoría"],
+        "summary": "Exportar log de auditoría en CSV (compatible Excel con BOM UTF-8)",
+        "parameters": [
+          { "name": "action",    "in": "query", "schema": { "type": "string" } },
+          { "name": "admin_id",  "in": "query", "schema": { "type": "string" } },
+          { "name": "date_from", "in": "query", "schema": { "type": "string", "format": "date" } },
+          { "name": "date_to",   "in": "query", "schema": { "type": "string", "format": "date" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Archivo CSV descargable — mismo filtro que la vista de auditoría",
+            "headers": {
+              "Content-Disposition": { "schema": { "type": "string", "example": "attachment; filename=\"auditoria_padelhub_2026-06-19.csv\"" } }
+            }
+          }
         }
       }
     }
+
   }
 }

@@ -2,6 +2,11 @@ import { POST as createUserHandler, GET as getUsersHandler, DELETE as deleteUser
 import { GET as getUserInfoHandler } from "../app/api/users/[rut]/route";
 import { prisma } from "../lib/prisma";
 
+jest.mock("@/lib/jwt", () => ({
+  verifyToken: jest.fn().mockResolvedValue({ userId: "mock-uuid", role: "player" }),
+  signToken:   jest.fn().mockResolvedValue("mock-token"),
+}));
+
 // 🌟 1. Mock de Prisma completo incluyendo findUnique para el teléfono
 jest.mock("../lib/prisma", () => ({
   prisma: {
@@ -11,6 +16,9 @@ jest.mock("../lib/prisma", () => ({
       findMany: jest.fn(),
       create: jest.fn(),
       delete: jest.fn(),
+    },
+    refresh_tokens: {
+      create: jest.fn(),
     },
     match_players: {
       count: jest.fn(),
