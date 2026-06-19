@@ -1,10 +1,18 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifyToken } from '@/lib/jwt';
+import { Resend } from 'resend';
+import { notify } from '@/lib/notify';
 
 type Params = { params: Promise<{ id: string }> };
 
+const resend = new Resend(process.env.RESEND_API_KEY);
 const MAX_PLAYERS: Record<string, number> = { doubles: 4, singles: 2 };
+
+const DIAS  = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+const MESES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+function formatDate(d: Date) { return `${DIAS[d.getUTCDay()]} ${d.getUTCDate()} ${MESES[d.getUTCMonth()]}`; }
+function formatTime(d: Date) { return d.toISOString().substring(11, 16); }
 
 export async function POST(request: Request, context: Params) {
   try {
@@ -19,8 +27,11 @@ export async function POST(request: Request, context: Params) {
     if (!invitedUserId) return NextResponse.json({ error: 'userId requerido' }, { status: 400 });
 
     const match = await prisma.matches.findUnique({
-      where: { id: matchId },
-      include: { match_players: { where: { status: { not: 'removed' } } } },
+      where:   { id: matchId },
+      include: {
+        match_players: { where: { status: { not: 'removed' } } },
+        users:         { select: { name: true } },
+      },
     });
 
     if (!match)                        return NextResponse.json({ error: 'Partido no encontrado' }, { status: 404 });
@@ -44,6 +55,54 @@ export async function POST(request: Request, context: Params) {
         status:   'pending',
       },
     });
+
+    // Notificación por email (best-effort)
+    const invited = await prisma.users.findUnique({
+      where:  { id: invitedUserId },
+      select: { name: true, email: true },
+    });
+
+    if (invited?.email) {
+      const dateStr   = formatDate(new Date(match.match_date));
+      const timeStr   = formatTime(new Date(match.match_time));
+      const formatStr = match.format === 'doubles' ? 'Dobles (2v2)' : 'Individual (1v1)';
+      const appUrl    = process.env.FRONTEND_URL ?? 'http://localhost:5173';
+
+      resend.emails.send({
+        from:    'onboarding@resend.dev',
+        to:      invited.email,
+        subject: `${match.users.name} te invitó a un partido — ${match.club}`,
+        html: `
+          <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px">
+            <div style="background:#84cc16;width:48px;height:48px;border-radius:14px;display:flex;align-items:center;justify-content:center;margin-bottom:20px">
+              <span style="font-size:24px;font-weight:800;color:#fff">H</span>
+            </div>
+            <h2 style="margin:0 0 8px;font-size:22px;font-weight:800;color:#111827">
+              ¡Tienes una invitación!
+            </h2>
+            <p style="color:#6b7280;font-size:14px;margin:0 0 24px">
+              Hola <strong>${invited.name}</strong>,
+              <strong>${match.users.name}</strong> te invitó a jugar un partido.
+            </p>
+            <div style="background:#f4f4f4;border-radius:12px;padding:16px 20px;margin-bottom:24px">
+              <p style="margin:0 0 6px;font-size:16px;font-weight:700;color:#111827">${match.club}</p>
+              <p style="margin:0;font-size:13px;color:#6b7280">
+                📅 ${dateStr} &nbsp;·&nbsp; ⏰ ${timeStr} &nbsp;·&nbsp; 🎾 ${formatStr}
+              </p>
+            </div>
+            <a href="${appUrl}/matches/${matchId}"
+               style="display:block;text-align:center;background:#84cc16;color:#fff;font-weight:700;font-size:15px;padding:13px 0;border-radius:10px;text-decoration:none">
+              Ver invitación →
+            </a>
+            <p style="font-size:12px;color:#9ca3af;margin-top:20px;text-align:center">
+              Puedes aceptar o rechazar desde la app PadelHub.
+            </p>
+          </div>
+        `,
+      }).catch(() => {}); // best-effort, nunca bloquea la respuesta
+    }
+
+    notify(invitedUserId, `Te invitaron a un partido`, `${match.users.name} te invitó a jugar en ${match.club}`);
 
     return NextResponse.json({ message: 'Invitación enviada', player }, { status: 201 });
   } catch (error) {

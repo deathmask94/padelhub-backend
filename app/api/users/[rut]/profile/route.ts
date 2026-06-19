@@ -99,9 +99,9 @@ export async function PUT(request: Request, context: Params) {
   try {
     const { rut } = await context.params;
     const body = await request.json();
-    const { name, zone, level } = body;
+    const { name, zone, level, reminder_enabled } = body;
 
-    if (!name && !zone && !level) {
+    if (!name && !zone && !level && reminder_enabled === undefined) {
       return NextResponse.json(
         { error: "Debes enviar al menos un campo para actualizar" },
         { status: 400 }
@@ -132,6 +132,7 @@ export async function PUT(request: Request, context: Params) {
         ...(name  ? { name }  : {}),
         ...(zone  ? { zone }  : {}),
         ...(level ? { level, mmr: LEVEL_BASE_MMR[level] } : {}),
+        ...(reminder_enabled !== undefined ? { reminder_enabled: Boolean(reminder_enabled) } : {}),
         updated_at: new Date(),
       },
     });

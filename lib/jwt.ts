@@ -4,11 +4,14 @@ const secret = new TextEncoder().encode(
   process.env.JWT_SECRET ?? 'dev-secret-please-change-in-production'
 );
 
-export async function signToken(payload: { userId: string; role: string }) {
+export async function signToken(
+  payload:   { userId: string; role: string },
+  expiresIn: string = '15m',
+) {
   return new SignJWT(payload)
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
-    .setExpirationTime('15m')
+    .setExpirationTime(expiresIn)
     .sign(secret);
 }
 

@@ -6,7 +6,7 @@ const FRONTEND_URL = process.env.FRONTEND_URL ?? 'http://localhost:5173';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': FRONTEND_URL,
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 
@@ -19,7 +19,8 @@ function isPublicRoute(pathname: string, method: string): boolean {
   if (pathname === '/api/users' && method === 'POST') return true;
   if (pathname === '/api/test-db') return true;
   if (pathname === '/api/ranking') return true;
-  if (pathname === '/api/backup') return true;
+  if (pathname === '/api/admin/login') return true;
+  if (pathname === '/api/reminders/send') return true;
   return false;
 }
 

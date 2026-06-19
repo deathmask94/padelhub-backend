@@ -53,6 +53,21 @@ export async function GET(request: Request, context: Params) {
     const isOrganizer = match.organizer_id === userId;
     const myEntry     = match.match_players.find((p) => p.user_id === userId);
 
+    // Valoraciones
+    const RATING_WINDOW_MS = 24 * 60 * 60 * 1000;
+    const isFinished = currentStatus === 'finished';
+    const withinWindow = isFinished
+      && Date.now() - new Date(match.updated_at).getTime() < RATING_WINDOW_MS;
+    const isParticipant = isOrganizer || !!myEntry;
+
+    const hasRated = isFinished && isParticipant
+      ? (await prisma.player_ratings.count({
+          where: { match_id: matchId, rater_id: userId },
+        })) > 0
+      : false;
+
+    const canRate = withinWindow && isParticipant && !hasRated;
+
     return NextResponse.json({
       ...match,
       status:       currentStatus,
@@ -60,6 +75,8 @@ export async function GET(request: Request, context: Params) {
       is_organizer: isOrganizer,
       my_status:    myEntry?.status ?? null,
       ends_at:      endsAt.toISOString(),
+      can_rate:     canRate,
+      has_rated:    hasRated,
     });
   } catch (error) {
     console.error('[MATCH GET]', error);

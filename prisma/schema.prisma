@@ -54,10 +54,12 @@ model matches {
   match_time    DateTime        @db.Time(6)
   created_at    DateTime        @default(now()) @db.Timestamp(6)
   updated_at    DateTime        @default(now()) @db.Timestamp(6)
-  match_players match_players[]
-  match_results match_results?
-  users         users           @relation(fields: [organizer_id], references: [id], onUpdate: NoAction)
-  mmr_history   mmr_history[]
+  match_players   match_players[]
+  match_results   match_results?
+  mmr_history     mmr_history[]
+  match_reminders match_reminders[]
+  player_ratings  player_ratings[]
+  users           users           @relation(fields: [organizer_id], references: [id], onUpdate: NoAction)
 
   @@index([match_date], map: "idx_matches_date")
   @@index([organizer_id], map: "idx_matches_organizer")
@@ -69,12 +71,12 @@ model matches {
 model mmr_history {
   id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   user_id       String   @db.Uuid
-  match_id      String   @db.Uuid
+  match_id      String?  @db.Uuid
   mmr_before    Int
   mmr_after     Int
   delta         Int      @default(dbgenerated("(mmr_after - mmr_before)"))
   calculated_at DateTime @default(now()) @db.Timestamp(6)
-  matches       matches  @relation(fields: [match_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  matches       matches? @relation(fields: [match_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
   users         users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@unique([user_id, match_id], map: "uq_mmr_per_match_user")
@@ -113,6 +115,7 @@ model users {
   mmr                   Int                     @default(1000)
   role                  user_role               @default(player)
   is_active             Boolean                 @default(true)
+  reminder_enabled      Boolean                 @default(true)
   created_at            DateTime                @default(now()) @db.Timestamp(6)
   updated_at            DateTime                @default(now()) @db.Timestamp(6)
   match_players         match_players[]
@@ -121,6 +124,11 @@ model users {
   mmr_history           mmr_history[]
   refresh_tokens        refresh_tokens[]
   password_reset_tokens password_reset_tokens[]
+  match_reminders       match_reminders[]
+  admin_audit_logs      admin_audit_logs[]
+  ratings_given         player_ratings[]   @relation("ratings_given")
+  ratings_received      player_ratings[]   @relation("ratings_received")
+  notifications         notifications[]
 
   @@unique([rut, dv_rut], map: "uq_rut")
   @@index([email], map: "idx_users_email")
@@ -129,6 +137,51 @@ model users {
   @@index([mmr(sort: Desc)], map: "idx_users_mmr")
   @@index([rut], map: "idx_users_rut")
   @@index([zone], map: "idx_users_zone")
+}
+
+model match_reminders {
+  id       String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  match_id String   @db.Uuid
+  user_id  String   @db.Uuid
+  type     String   @db.VarChar(5) // "24h" | "1h"
+  sent_at  DateTime @default(now()) @db.Timestamp(6)
+  matches  matches  @relation(fields: [match_id], references: [id], onDelete: Cascade)
+  users    users    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([match_id, user_id, type])
+  @@index([match_id], map: "idx_match_reminders_match")
+  @@index([user_id],  map: "idx_match_reminders_user")
+}
+
+model player_ratings {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  match_id    String   @db.Uuid
+  rater_id    String   @db.Uuid
+  rated_id    String   @db.Uuid
+  fair_play   Int
+  punctuality Int
+  skill_level Int
+  created_at  DateTime @default(now()) @db.Timestamp(6)
+  matches     matches  @relation(fields: [match_id], references: [id], onDelete: Cascade)
+  rater       users    @relation("ratings_given",    fields: [rater_id], references: [id], onDelete: Cascade)
+  rated       users    @relation("ratings_received", fields: [rated_id], references: [id], onDelete: Cascade)
+
+  @@unique([match_id, rater_id, rated_id])
+  @@index([rated_id], map: "idx_ratings_rated")
+  @@index([match_id], map: "idx_ratings_match")
+}
+
+model admin_audit_logs {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  admin_id   String   @db.Uuid
+  action     String   @db.VarChar(50)
+  details    String?  @db.Text
+  ip         String?  @db.VarChar(45)
+  created_at DateTime @default(now()) @db.Timestamp(6)
+  users      users    @relation(fields: [admin_id], references: [id], onDelete: Cascade)
+
+  @@index([admin_id],   map: "idx_audit_admin")
+  @@index([created_at], map: "idx_audit_date")
 }
 
 model password_reset_tokens {
@@ -142,6 +195,18 @@ model password_reset_tokens {
 
   @@index([token], map: "idx_prt_token")
   @@index([user_id], map: "idx_prt_user")
+}
+
+model notifications {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id    String   @db.Uuid
+  title      String   @db.VarChar(200)
+  body       String?  @db.Text
+  read       Boolean  @default(false)
+  created_at DateTime @default(now()) @db.Timestamp(6)
+  users      users    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id, created_at(sort: Desc)], map: "idx_notif_user")
 }
 
 enum match_format {

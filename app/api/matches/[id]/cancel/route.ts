@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifyToken } from '@/lib/jwt';
 import { Resend } from 'resend';
+import { notify } from '@/lib/notify';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -86,6 +87,10 @@ export async function POST(request: Request, context: Params) {
         )
       );
     }
+
+    match.match_players.forEach((p) => {
+      notify(p.users.id, `Partido cancelado — ${match.club}`, `El partido fue cancelado por el organizador`);
+    });
 
     return NextResponse.json({ message: 'Partido cancelado correctamente' });
   } catch (error) {

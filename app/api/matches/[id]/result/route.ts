@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifyToken } from '@/lib/jwt';
 import { calculateELO } from '@/lib/elo';
+import { notify } from '@/lib/notify';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -98,6 +99,11 @@ export async function POST(request: Request, context: Params) {
         })
       ),
     ]);
+
+    const scoreStr = `${score_team_a || '—'} vs ${score_team_b || '—'}`;
+    [...teamA, ...teamB].forEach((p) => {
+      notify(p.id, `Resultado registrado — ${match.club}`, scoreStr);
+    });
 
     return NextResponse.json({ message: 'Resultado registrado', changes });
   } catch (error) {
