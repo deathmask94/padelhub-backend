@@ -110,6 +110,7 @@ model users {
   name                  String                  @db.VarChar(100)
   password_hash         String                  @db.VarChar(255)
   photo_url             String?                 @db.VarChar(500)
+  birth_date            DateTime?               @db.Date
   level                 user_level              @default(tercera)
   zone                  String                  @db.VarChar(100)
   mmr                   Int                     @default(1000)

@@ -60,6 +60,7 @@ export async function GET(_request: Request, context: Params) {
         zone:       userResponse.zone,
         level:      userResponse.level,
         mmr:        userResponse.mmr,
+        birth_date: userResponse.birth_date ?? null,
         created_at: userResponse.created_at,
       },
       stats: {

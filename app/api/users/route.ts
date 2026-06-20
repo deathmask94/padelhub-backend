@@ -46,7 +46,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { rut, dv_rut, phone, name, password, zone, email } = body;
+    const { rut, dv_rut, phone, name, password, zone, email, birth_date } = body;
 
     if (!rut || !dv_rut || !phone || !name || !password || !zone) {
       return NextResponse.json(
@@ -100,6 +100,7 @@ export async function POST(request: Request) {
         name,
         password_hash: hashedPassword,
         zone,
+        ...(birth_date ? { birth_date: new Date(birth_date) } : {}),
       },
     });
 
