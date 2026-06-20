@@ -2,26 +2,11 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { verifyToken } from './lib/jwt';
 
-const ALLOWED_ORIGINS = (process.env.FRONTEND_URL ?? 'http://localhost:5173')
-  .split(',')
-  .map(s => s.trim());
-
-function isAllowedOrigin(origin: string | null): boolean {
-  if (!origin) return false;
-  if (ALLOWED_ORIGINS.includes(origin)) return true;
-  if (origin.endsWith('.vercel.app')) return true;
-  if (origin.startsWith('http://localhost:')) return true;
-  return false;
-}
-
-function getCorsHeaders(origin: string | null) {
-  const allowed = isAllowedOrigin(origin) ? origin! : ALLOWED_ORIGINS[0];
-  return {
-    'Access-Control-Allow-Origin': allowed,
-    'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-  };
-}
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin':  '*',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+};
 
 function isPublicRoute(pathname: string, method: string): boolean {
   if (pathname === '/api/auth/login')   return true;
@@ -41,12 +26,9 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const method = request.method;
 
-  const origin = request.headers.get('origin');
-  const corsHeaders = getCorsHeaders(origin);
-
   // Preflight CORS
   if (method === 'OPTIONS') {
-    return new NextResponse(null, { status: 200, headers: corsHeaders });
+    return new NextResponse(null, { status: 200, headers: CORS_HEADERS });
   }
 
   if (!isPublicRoute(pathname, method)) {
@@ -56,7 +38,7 @@ export async function middleware(request: NextRequest) {
     if (!token) {
       return NextResponse.json(
         { error: 'No autorizado' },
-        { status: 401, headers: corsHeaders }
+        { status: 401, headers: CORS_HEADERS }
       );
     }
 
@@ -65,13 +47,13 @@ export async function middleware(request: NextRequest) {
     } catch {
       return NextResponse.json(
         { error: 'Token inválido o expirado' },
-        { status: 401, headers: corsHeaders }
+        { status: 401, headers: CORS_HEADERS }
       );
     }
   }
 
   const response = NextResponse.next();
-  Object.entries(corsHeaders).forEach(([k, v]) => response.headers.set(k, v));
+  Object.entries(CORS_HEADERS).forEach(([k, v]) => response.headers.set(k, v));
   return response;
 }
 
