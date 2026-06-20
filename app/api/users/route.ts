@@ -3,6 +3,16 @@ import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { signToken } from "@/lib/jwt";
 
+const CORS = {
+  'Access-Control-Allow-Origin':  '*',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+};
+
+export async function OPTIONS() {
+  return new NextResponse(null, { status: 200, headers: CORS });
+}
+
 export async function GET() {
   try {
     const players = await prisma.users.findMany({
@@ -108,13 +118,13 @@ export async function POST(request: Request) {
 
     return NextResponse.json(
       { message: "¡Jugador registrado con éxito!", user: userResponse, token, refreshToken },
-      { status: 201 }
+      { status: 201, headers: CORS }
     );
   } catch (error: unknown) {
     console.error("[USERS POST ERROR]", error);
     return NextResponse.json(
       { error: "Hubo un fallo en el servidor al registrar" },
-      { status: 500 }
+      { status: 500, headers: CORS }
     );
   }
 }
