@@ -57,7 +57,7 @@ export async function POST(request: Request) {
     }
 
     try {
-      const model = (prisma as Record<string, { createMany: (args: unknown) => Promise<{ count: number }> }>)[tableName];
+      const model = (prisma as unknown as Record<string, { createMany: (args: unknown) => Promise<{ count: number }> }>)[tableName];
       if (!model?.createMany) {
         results[tableName] = { inserted: 0, error: 'Modelo no encontrado' };
         continue;
