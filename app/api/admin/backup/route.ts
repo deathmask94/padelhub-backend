@@ -16,7 +16,7 @@ export async function GET(request: Request) {
 
     for (const model of modelNames) {
       try {
-        const tableData = await (prisma as Record<string, { findMany: () => Promise<unknown[]> }>)[model].findMany();
+        const tableData = await (prisma as unknown as Record<string, { findMany: () => Promise<unknown[]> }>)[model].findMany();
         fullBackupData[model] = { record_count: tableData.length, records: tableData };
         totalRecordsCount += tableData.length;
       } catch {

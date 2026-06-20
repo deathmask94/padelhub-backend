@@ -21,7 +21,7 @@ export async function register() {
 
         const fullBackupData: Record<string, unknown> = {};
         for (const model of modelNames) {
-          fullBackupData[model] = await (prisma as Record<string, { findMany: () => Promise<unknown> }>)[model].findMany();
+          fullBackupData[model] = await (prisma as unknown as Record<string, { findMany: () => Promise<unknown> }>)[model].findMany();
         }
 
         const masterBackup = {
