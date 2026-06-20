@@ -6,8 +6,16 @@ const ALLOWED_ORIGINS = (process.env.FRONTEND_URL ?? 'http://localhost:5173')
   .split(',')
   .map(s => s.trim());
 
+function isAllowedOrigin(origin: string | null): boolean {
+  if (!origin) return false;
+  if (ALLOWED_ORIGINS.includes(origin)) return true;
+  if (origin.endsWith('.vercel.app')) return true;
+  if (origin.startsWith('http://localhost:')) return true;
+  return false;
+}
+
 function getCorsHeaders(origin: string | null) {
-  const allowed = ALLOWED_ORIGINS.includes(origin ?? '') ? origin! : ALLOWED_ORIGINS[0];
+  const allowed = isAllowedOrigin(origin) ? origin! : ALLOWED_ORIGINS[0];
   return {
     'Access-Control-Allow-Origin': allowed,
     'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
