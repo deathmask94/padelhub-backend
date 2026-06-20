@@ -2,13 +2,18 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { verifyToken } from './lib/jwt';
 
-const FRONTEND_URL = process.env.FRONTEND_URL ?? 'http://localhost:5173';
+const ALLOWED_ORIGINS = (process.env.FRONTEND_URL ?? 'http://localhost:5173')
+  .split(',')
+  .map(s => s.trim());
 
-const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': FRONTEND_URL,
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-};
+function getCorsHeaders(origin: string | null) {
+  const allowed = ALLOWED_ORIGINS.includes(origin ?? '') ? origin! : ALLOWED_ORIGINS[0];
+  return {
+    'Access-Control-Allow-Origin': allowed,
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  };
+}
 
 function isPublicRoute(pathname: string, method: string): boolean {
   if (pathname === '/api/auth/login')   return true;
@@ -28,9 +33,12 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const method = request.method;
 
+  const origin = request.headers.get('origin');
+  const corsHeaders = getCorsHeaders(origin);
+
   // Preflight CORS
   if (method === 'OPTIONS') {
-    return new NextResponse(null, { status: 200, headers: CORS_HEADERS });
+    return new NextResponse(null, { status: 200, headers: corsHeaders });
   }
 
   if (!isPublicRoute(pathname, method)) {
@@ -40,7 +48,7 @@ export async function middleware(request: NextRequest) {
     if (!token) {
       return NextResponse.json(
         { error: 'No autorizado' },
-        { status: 401, headers: CORS_HEADERS }
+        { status: 401, headers: corsHeaders }
       );
     }
 
@@ -49,13 +57,13 @@ export async function middleware(request: NextRequest) {
     } catch {
       return NextResponse.json(
         { error: 'Token inválido o expirado' },
-        { status: 401, headers: CORS_HEADERS }
+        { status: 401, headers: corsHeaders }
       );
     }
   }
 
   const response = NextResponse.next();
-  Object.entries(CORS_HEADERS).forEach(([k, v]) => response.headers.set(k, v));
+  Object.entries(corsHeaders).forEach(([k, v]) => response.headers.set(k, v));
   return response;
 }
 
