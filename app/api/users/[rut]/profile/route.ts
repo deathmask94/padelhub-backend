@@ -70,8 +70,8 @@ export async function GET(_request: Request, context: Params) {
         mmr_variation_30d: recentSum._sum.delta ?? 0,
         mmr_chart:         chartRaw.reverse().map((h) => h.mmr_after),
         last_matches:      lastMatchRaw.map((h) => ({
-          club:  h.matches.club,
-          date:  h.matches.match_date,
+          club:  h.matches?.club ?? null,
+          date:  h.matches?.match_date ?? null,
           delta: h.delta,
           win:   h.delta > 0,
         })),

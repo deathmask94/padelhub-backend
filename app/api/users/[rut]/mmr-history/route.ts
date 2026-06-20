@@ -52,8 +52,8 @@ export async function GET(_request: Request, context: Params) {
 
     const matches = [...entries].reverse().map((e) => ({
       match_id:   e.match_id,
-      club:       e.matches.club,
-      date:       e.matches.match_date,
+      club:       e.matches?.club ?? null,
+      date:       e.matches?.match_date ?? null,
       mmr_before: e.mmr_before,
       mmr_after:  e.mmr_after,
       delta:      e.delta,
