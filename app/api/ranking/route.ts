@@ -14,7 +14,7 @@ export async function GET(request: Request) {
     const limit = Math.min(parseInt(searchParams.get('limit') ?? '20'), 50);
 
     const players = await prisma.users.findMany({
-      where:   { ...(zone ? { zone } : {}), is_active: true },
+      where:   { ...(zone ? { zone } : {}), is_active: true, role: "player" },
       orderBy: { mmr: 'desc' },
       take:    limit,
       select:  { id: true, name: true, photo_url: true, level: true, mmr: true, zone: true },

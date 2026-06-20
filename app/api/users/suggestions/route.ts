@@ -32,6 +32,7 @@ export async function GET(request: Request) {
       const rivals = await prisma.users.findMany({
         where: {
           is_active: true,
+          role:      "player",
           id:        { not: userId },
           mmr:       { gte: Math.max(0, userMMR - range), lte: userMMR + range },
         },

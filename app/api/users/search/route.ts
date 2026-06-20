@@ -24,6 +24,7 @@ export async function GET(request: Request) {
     const users = await prisma.users.findMany({
       where: {
         is_active: true,
+        role: "player",
         id: { not: userId },
         ...nameFilter,
         ...(level   ? { level: level as never }                            : {}),
