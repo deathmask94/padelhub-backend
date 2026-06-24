@@ -84,34 +84,15 @@ export async function GET(_request: Request, context: Params) {
   }
 }
 
-const VALID_LEVELS = ["primera","segunda","tercera","cuarta","quinta","sexta","septima_mas"];
-
-const LEVEL_BASE_MMR: Record<string, number> = {
-  primera:     2000,
-  segunda:     1600,
-  tercera:     1000,
-  cuarta:       800,
-  quinta:       600,
-  sexta:        400,
-  septima_mas:  200,
-};
-
 export async function PUT(request: Request, context: Params) {
   try {
     const { rut } = await context.params;
     const body = await request.json();
-    const { name, zone, level, reminder_enabled } = body;
+    const { name, zone, reminder_enabled } = body;
 
-    if (!name && !zone && !level && reminder_enabled === undefined) {
+    if (!name && !zone && reminder_enabled === undefined) {
       return NextResponse.json(
         { error: "Debes enviar al menos un campo para actualizar" },
-        { status: 400 }
-      );
-    }
-
-    if (level && !VALID_LEVELS.includes(level)) {
-      return NextResponse.json(
-        { error: `Nivel inválido. Valores permitidos: ${VALID_LEVELS.join(", ")}` },
         { status: 400 }
       );
     }
@@ -130,9 +111,8 @@ export async function PUT(request: Request, context: Params) {
     const updated = await prisma.users.update({
       where: { id: player.id },
       data: {
-        ...(name  ? { name }  : {}),
-        ...(zone  ? { zone }  : {}),
-        ...(level ? { level, mmr: LEVEL_BASE_MMR[level] } : {}),
+        ...(name ? { name } : {}),
+        ...(zone ? { zone } : {}),
         ...(reminder_enabled !== undefined ? { reminder_enabled: Boolean(reminder_enabled) } : {}),
         updated_at: new Date(),
       },
