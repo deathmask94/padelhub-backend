@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAdminPayload, unauthorizedResponse } from '@/lib/adminGuard';
+import { mmrToLevel } from '@/lib/mmrToLevel';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -32,14 +33,22 @@ export async function POST(request: Request, { params }: Params) {
     ?? request.headers.get('x-real-ip')
     ?? 'unknown';
 
+  // Fetch current MMR to compute post-revert values and recalculate level
+  const affectedUsers = await prisma.users.findMany({
+    where:  { id: { in: match.mmr_history.map((h) => h.user_id) } },
+    select: { id: true, mmr: true },
+  });
+  const mmrMap = Object.fromEntries(affectedUsers.map((u) => [u.id, u.mmr]));
+
   // Revertir delta de cada jugador restando su variación de MMR
   await prisma.$transaction([
-    ...match.mmr_history.map(({ user_id, delta }) =>
-      prisma.users.update({
+    ...match.mmr_history.map(({ user_id, delta }) => {
+      const newMmr = Math.max(0, (mmrMap[user_id] ?? 0) - delta);
+      return prisma.users.update({
         where: { id: user_id },
-        data:  { mmr: { decrement: delta }, updated_at: new Date() },
-      })
-    ),
+        data:  { mmr: newMmr, level: mmrToLevel(newMmr), updated_at: new Date() },
+      });
+    }),
     prisma.mmr_history.deleteMany({ where: { match_id: matchId } }),
     prisma.match_results.delete({ where: { match_id: matchId } }),
     prisma.matches.update({

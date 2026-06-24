@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifyToken } from '@/lib/jwt';
 import { calculateELO } from '@/lib/elo';
+import { mmrToLevel } from '@/lib/mmrToLevel';
 import { notify } from '@/lib/notify';
 
 type Params = { params: Promise<{ id: string }> };
@@ -80,11 +81,11 @@ export async function POST(request: Request, context: Params) {
           winner,
         },
       }),
-      // Update each player's MMR
+      // Update each player's MMR and recalculate category
       ...changes.map((c) =>
         prisma.users.update({
           where: { id: c.id },
-          data:  { mmr: c.after, updated_at: new Date() },
+          data:  { mmr: c.after, level: mmrToLevel(c.after), updated_at: new Date() },
         })
       ),
       // Create MMR history entries

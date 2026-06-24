@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAdminPayload, unauthorizedResponse } from '@/lib/adminGuard';
+import { mmrToLevel } from '@/lib/mmrToLevel';
 import { Resend } from 'resend';
 
 type Params = { params: Promise<{ id: string }> };
@@ -35,7 +36,7 @@ export async function PATCH(request: Request, { params }: Params) {
   await prisma.$transaction([
     prisma.users.update({
       where: { id },
-      data:  { mmr: newMmr, updated_at: new Date() },
+      data:  { mmr: newMmr, level: mmrToLevel(newMmr), updated_at: new Date() },
     }),
     prisma.mmr_history.create({
       data: {
