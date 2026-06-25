@@ -90,6 +90,11 @@ export async function PUT(request: Request, context: Params) {
     const body = await request.json();
     const { name, zone, reminder_enabled } = body;
 
+    const VALID_ZONES = ["Viña del Mar", "Valparaíso", "Quilpué", "Villa Alemana", "Concón"];
+    if (zone && !VALID_ZONES.includes(zone)) {
+      return NextResponse.json({ error: "Zona no válida" }, { status: 400 });
+    }
+
     if (!name && !zone && reminder_enabled === undefined) {
       return NextResponse.json(
         { error: "Debes enviar al menos un campo para actualizar" },
