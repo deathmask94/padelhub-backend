@@ -102,7 +102,7 @@ export async function POST(request: Request, context: Params) {
       }).catch(() => {}); // best-effort, nunca bloquea la respuesta
     }
 
-    notify(invitedUserId, `Te invitaron a un partido`, `${match.users.name} te invitó a jugar en ${match.club}`);
+    await notify(invitedUserId, `Te invitaron a un partido`, `${match.users.name} te invitó a jugar en ${match.club}`);
 
     return NextResponse.json({ message: 'Invitación enviada', player }, { status: 201 });
   } catch (error) {

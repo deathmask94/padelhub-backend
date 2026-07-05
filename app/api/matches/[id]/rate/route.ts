@@ -82,9 +82,11 @@ export async function POST(request: Request, { params }: Params) {
       skipDuplicates: true,
     });
 
-    ratings.forEach((r) => {
-      notify(r.rated_id, 'Recibiste una valoración', `Un compañero valoró tu desempeño en ${match.club}`);
-    });
+    await Promise.all(
+      ratings.map((r) =>
+        notify(r.rated_id, 'Recibiste una valoración', `Un compañero valoró tu desempeño en ${match.club}`)
+      )
+    );
 
     return NextResponse.json({ message: 'Valoraciones enviadas correctamente' });
   } catch (error) {

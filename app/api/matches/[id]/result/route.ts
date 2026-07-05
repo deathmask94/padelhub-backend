@@ -102,9 +102,11 @@ export async function POST(request: Request, context: Params) {
     ]);
 
     const scoreStr = `${score_team_a || '—'} vs ${score_team_b || '—'}`;
-    [...teamA, ...teamB].forEach((p) => {
-      notify(p.id, `Resultado registrado — ${match.club}`, scoreStr);
-    });
+    await Promise.all(
+      [...teamA, ...teamB].map((p) =>
+        notify(p.id, `Resultado registrado — ${match.club}`, scoreStr)
+      )
+    );
 
     return NextResponse.json({ message: 'Resultado registrado', changes });
   } catch (error) {
