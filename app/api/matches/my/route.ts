@@ -25,7 +25,7 @@ export async function GET(request: Request) {
       where: {
         OR: [
           { organizer_id: userId },
-          { match_players: { some: { user_id: userId } } },
+          { match_players: { some: { user_id: userId, status: { notIn: ['rejected', 'removed'] } } } },
         ],
       },
       include: {
