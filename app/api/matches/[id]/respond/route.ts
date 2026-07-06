@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifyToken } from '@/lib/jwt';
+import { notify } from '@/lib/notify';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -18,7 +19,12 @@ export async function POST(request: Request, context: Params) {
 
     const match = await prisma.matches.findUnique({
       where: { id: matchId },
-      include: { match_players: { where: { status: { not: 'removed' } } } },
+      include: {
+        match_players: {
+          where:   { status: { not: 'removed' } },
+          include: { users: { select: { name: true } } },
+        },
+      },
     });
 
     if (!match) return NextResponse.json({ error: 'Partido no encontrado' }, { status: 404 });
@@ -44,6 +50,12 @@ export async function POST(request: Request, context: Params) {
           data:  { status: 'confirmed', updated_at: new Date() },
         });
       }
+    } else {
+      await notify(
+        match.organizer_id,
+        'Desafío rechazado',
+        `${myEntry.users.name} rechazó tu invitación en ${match.club}. Busca un nuevo rival en Matchmaking.`
+      );
     }
 
     return NextResponse.json({
