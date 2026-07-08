@@ -25,6 +25,7 @@ export async function GET() {
         name: true,
         photo_url: true,
         level: true,
+        gender: true,
         zone: true,
         mmr: true,
         role: true,
@@ -46,11 +47,18 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { rut, dv_rut, phone, name, password, zone, email, birth_date } = body;
+    const { rut, dv_rut, phone, name, password, zone, email, birth_date, gender } = body;
 
-    if (!rut || !dv_rut || !phone || !name || !password || !zone) {
+    if (!rut || !dv_rut || !phone || !name || !password || !zone || !gender) {
       return NextResponse.json(
         { error: "Faltan campos obligatorios en el formulario" },
+        { status: 400 }
+      );
+    }
+
+    if (gender !== "masculino" && gender !== "femenino") {
+      return NextResponse.json(
+        { error: "El género debe ser 'masculino' o 'femenino'" },
         { status: 400 }
       );
     }
@@ -100,6 +108,7 @@ export async function POST(request: Request) {
         name,
         password_hash: hashedPassword,
         zone,
+        gender,
         ...(birth_date ? { birth_date: new Date(birth_date) } : {}),
       },
     });

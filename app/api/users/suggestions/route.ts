@@ -23,6 +23,9 @@ export async function GET(request: Request) {
 
     const userMMR = me.mmr;
 
+    const genderParam = new URL(request.url).searchParams.get('gender');
+    const genderFilter = genderParam === 'masculino' || genderParam === 'femenino' ? genderParam : undefined;
+
     // Intentar con ±150, luego ±300, luego ±500 hasta tener al menos 5 rivales
     const RANGES = [150, 300, 500];
     let suggestions: { id: string; name: string; photo_url: string | null; level: string; mmr: number; zone: string; compatibility: number }[] = [];
@@ -35,6 +38,7 @@ export async function GET(request: Request) {
           role:      "player",
           id:        { not: userId },
           mmr:       { gte: Math.max(0, userMMR - range), lte: userMMR + range },
+          ...(genderFilter ? { gender: genderFilter } : {}),
         },
         select:  { id: true, name: true, photo_url: true, level: true, mmr: true, zone: true },
         orderBy: { mmr: 'asc' },

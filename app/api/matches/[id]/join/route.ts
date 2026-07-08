@@ -33,6 +33,14 @@ export async function POST(request: Request, context: Params) {
       return NextResponse.json({ error: 'No puedes unirte a tu propio partido como jugador' }, { status: 400 });
     }
 
+    if (match.gender_preference) {
+      const me = await prisma.users.findUnique({ where: { id: userId }, select: { gender: true } });
+      if (me?.gender !== match.gender_preference) {
+        const label = match.gender_preference === 'masculino' ? 'hombres' : 'mujeres';
+        return NextResponse.json({ error: `Este partido es solo para ${label}` }, { status: 403 });
+      }
+    }
+
     const alreadyJoined = match.match_players.some((p) => p.user_id === userId);
     if (alreadyJoined) {
       return NextResponse.json({ error: 'Ya estás inscrito en este partido' }, { status: 400 });

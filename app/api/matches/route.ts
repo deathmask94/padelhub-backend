@@ -7,12 +7,19 @@ import { prisma } from "@/lib/prisma";
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { organizer_id, club, format, match_date, match_time } = body;
+    const { organizer_id, club, format, match_date, match_time, gender_preference } = body;
 
     // Validación básica de campos obligatorios
     if (!organizer_id || !club || !match_date || !match_time) {
       return NextResponse.json(
         { error: "Faltan campos obligatorios (organizer_id, club, match_date, match_time)" },
+        { status: 400 }
+      );
+    }
+
+    if (gender_preference && gender_preference !== "masculino" && gender_preference !== "femenino") {
+      return NextResponse.json(
+        { error: "gender_preference debe ser 'masculino', 'femenino' o vacío" },
         { status: 400 }
       );
     }
@@ -28,6 +35,7 @@ export async function POST(request: Request) {
         club,
         format: format || "doubles", // Si no viene, por defecto es doubles
         status: "open",             // Estado inicial siempre abierto
+        gender_preference: gender_preference || null,
         match_date: formattedDate,
         match_time: formattedTime,
       },

@@ -61,7 +61,8 @@ describe("👥 PRUEBAS UNITARIAS - GESTIÓN DE USUARIOS Y PERFILES", () => {
         phone: "+56912345678",
         name: "Felipe Martínez",
         password: "claveSegura123",
-        zone: "Concepción"
+        zone: "Concepción",
+        gender: "masculino"
       }),
     });
 
