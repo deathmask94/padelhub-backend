@@ -85,8 +85,7 @@ describe("👥 PRUEBAS UNITARIAS - GESTIÓN DE USUARIOS Y PERFILES", () => {
       { id: "2", name: "Jugador B" }
     ]);
 
-    const req = new Request("http://localhost:3000/api/users");
-    const res = await getUsersHandler(req);
+    const res = await getUsersHandler();
     expect(res.status).toBe(200);
   });
 
