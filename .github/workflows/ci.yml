@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    env:
+      # Valores ficticios: next build importa modulos que instancian clientes
+      # (Resend, etc.) al cargar, asi que necesitan *alguna* variable presente
+      # aunque no se conecten de verdad durante el build.
+      DATABASE_URL: "postgresql://ci:ci@localhost:5432/ci"
+      DIRECT_URL: "postgresql://ci:ci@localhost:5432/ci"
+      JWT_SECRET: "ci-dummy-secret"
+      RESEND_API_KEY: "re_dummy_ci_key"
+      CLOUDINARY_CLOUD_NAME: "ci-dummy"
+      CLOUDINARY_API_KEY: "ci-dummy"
+      CLOUDINARY_API_SECRET: "ci-dummy"
+      CRON_SECRET: "ci-dummy"
+      FRONTEND_URL: "http://localhost:3000"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Type-check
+        run: npx tsc --noEmit
+
+      - name: Build (misma verificacion que hace Vercel antes de desplegar)
+        run: npm run build
+
+      - name: Tests
+        run: npx jest --ci
