@@ -1,6 +1,16 @@
 import { NextResponse } from 'next/server';
+import { readFile } from 'fs/promises';
+import path from 'path';
 import { prisma } from '@/lib/prisma';
 import { getAdminPayload, unauthorizedResponse } from '@/lib/adminGuard';
+
+async function readSchemaPrisma(): Promise<string | null> {
+  try {
+    return await readFile(path.join(process.cwd(), 'prisma', 'schema.prisma'), 'utf8');
+  } catch {
+    return null;
+  }
+}
 
 export async function GET(request: Request) {
   const admin = await getAdminPayload(request);
@@ -27,6 +37,8 @@ export async function GET(request: Request) {
       }
     }
 
+    const schemaPrisma = await readSchemaPrisma();
+
     const masterBackup = {
       backup_info: {
         project:                  'PadelHub Backend',
@@ -35,7 +47,12 @@ export async function GET(request: Request) {
         exported_entities_count:  modelNames.length,
         total_records_exported:   totalRecordsCount,
         database_provider:        'PostgreSQL (Supabase)',
+        schema_included:          schemaPrisma !== null,
       },
+      // Esquema completo (prisma/schema.prisma) para poder reconstruir la
+      // estructura de la BD desde cero con `prisma db push` antes de restaurar
+      // los datos. Sin esto el JSON solo sirve si las tablas ya existen.
+      schema_prisma: schemaPrisma,
       database: fullBackupData,
     };
 
