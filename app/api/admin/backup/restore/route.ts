@@ -19,6 +19,23 @@ interface BackupTable {
   records: Record<string, unknown>[];
   record_count?: number;
 }
+
+// Columnas generadas por Postgres (GENERATED ALWAYS AS): el backup las exporta
+// como si fueran datos normales, pero la BD rechaza cualquier insert explícito
+// sobre ellas. Hay que quitarlas antes de restaurar para que no fallen las filas.
+const GENERATED_COLUMNS: Record<string, string[]> = {
+  mmr_history: ['delta'],
+};
+
+function stripGeneratedColumns(tableName: string, records: Record<string, unknown>[]) {
+  const cols = GENERATED_COLUMNS[tableName];
+  if (!cols) return records;
+  return records.map((r) => {
+    const clean = { ...r };
+    for (const col of cols) delete clean[col];
+    return clean;
+  });
+}
 interface BackupFile {
   backup_info: {
     backup_date:           string;
@@ -64,7 +81,7 @@ export async function POST(request: Request) {
       }
 
       const { count } = await model.createMany({
-        data:           tableData.records,
+        data:           stripGeneratedColumns(tableName, tableData.records),
         skipDuplicates: true,
       });
 
