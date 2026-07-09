@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { signToken } from "@/lib/jwt";
+import { normalizeName, normalizePhone, normalizeUsername } from "@/lib/normalize";
 
 const CORS = {
   'Access-Control-Allow-Origin':  '*',
@@ -23,6 +24,8 @@ export async function GET() {
         dv_rut: true,
         phone: true,
         name: true,
+        last_name: true,
+        username: true,
         photo_url: true,
         level: true,
         gender: true,
@@ -47,18 +50,44 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { rut, dv_rut, phone, name, password, zone, email, birth_date, gender } = body;
+    const { rut, dv_rut, phone, nombre, apellido, username, password, zone, email, birth_date, gender } = body;
 
-    if (!rut || !dv_rut || !phone || !name || !password || !zone || !gender) {
+    if (!rut || !dv_rut || !phone || !nombre || !apellido || !username || !password || !zone || !gender) {
       return NextResponse.json(
         { error: "Faltan campos obligatorios en el formulario" },
         { status: 400 }
       );
     }
 
-    if (gender !== "masculino" && gender !== "femenino") {
+    if (gender !== "Masculino" && gender !== "Femenino") {
       return NextResponse.json(
-        { error: "El género debe ser 'masculino' o 'femenino'" },
+        { error: "El género debe ser 'Masculino' o 'Femenino'" },
+        { status: 400 }
+      );
+    }
+
+    const normalizedNombre = normalizeName(nombre);
+    if (normalizedNombre.length < 2 || normalizedNombre.length > 25) {
+      return NextResponse.json({ error: "El nombre debe tener entre 2 y 25 caracteres" }, { status: 400 });
+    }
+
+    const normalizedApellido = normalizeName(apellido);
+    if (normalizedApellido.length < 2 || normalizedApellido.length > 25) {
+      return NextResponse.json({ error: "El apellido debe tener entre 2 y 25 caracteres" }, { status: 400 });
+    }
+
+    const normalizedUsername = normalizeUsername(username);
+    if (!normalizedUsername) {
+      return NextResponse.json(
+        { error: "El nombre de usuario debe tener entre 3 y 24 caracteres (letras, números, '.' o '_')" },
+        { status: 400 }
+      );
+    }
+
+    const normalizedPhone = normalizePhone(phone);
+    if (!normalizedPhone) {
+      return NextResponse.json(
+        { error: "El teléfono debe ser un número móvil chileno válido: 9 seguido de 8 dígitos" },
         { status: 400 }
       );
     }
@@ -75,10 +104,18 @@ export async function POST(request: Request) {
       }
     }
 
-    const existingPhone = await prisma.users.findUnique({ where: { phone } });
+    const existingPhone = await prisma.users.findUnique({ where: { phone: normalizedPhone } });
     if (existingPhone) {
       return NextResponse.json(
         { error: "El número de teléfono ya se encuentra registrado" },
+        { status: 400 }
+      );
+    }
+
+    const existingUsername = await prisma.users.findUnique({ where: { username: normalizedUsername } });
+    if (existingUsername) {
+      return NextResponse.json(
+        { error: "Ese nombre de usuario ya está en uso" },
         { status: 400 }
       );
     }
@@ -104,8 +141,10 @@ export async function POST(request: Request) {
         rut:           parseInt(rut),
         dv_rut:        dv_rut.toString().toUpperCase(),
         email:         email ? email.toLowerCase().trim() : null,
-        phone,
-        name,
+        phone:         normalizedPhone,
+        name:          `${normalizedNombre} ${normalizedApellido}`,
+        last_name:     normalizedApellido,
+        username:      normalizedUsername,
         password_hash: hashedPassword,
         zone,
         gender,

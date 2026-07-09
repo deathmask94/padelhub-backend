@@ -36,7 +36,7 @@ export async function POST(request: Request, context: Params) {
     if (match.gender_preference) {
       const me = await prisma.users.findUnique({ where: { id: userId }, select: { gender: true } });
       if (me?.gender !== match.gender_preference) {
-        const label = match.gender_preference === 'masculino' ? 'hombres' : 'mujeres';
+        const label = match.gender_preference === 'Masculino' ? 'hombres' : 'mujeres';
         return NextResponse.json({ error: `Este partido es solo para ${label}` }, { status: 403 });
       }
     }

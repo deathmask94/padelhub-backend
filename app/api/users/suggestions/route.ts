@@ -24,7 +24,7 @@ export async function GET(request: Request) {
     const userMMR = me.mmr;
 
     const genderParam = new URL(request.url).searchParams.get('gender');
-    const genderFilter = genderParam === 'masculino' || genderParam === 'femenino' ? genderParam : undefined;
+    const genderFilter = genderParam === 'Masculino' || genderParam === 'Femenino' ? genderParam : undefined;
 
     // Intentar con ±150, luego ±300, luego ±500 hasta tener al menos 5 rivales
     const RANGES = [150, 300, 500];

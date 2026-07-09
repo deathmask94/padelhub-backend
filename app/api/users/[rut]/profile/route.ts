@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { normalizeName } from "@/lib/normalize";
 
 type Params = { params: Promise<{ rut: string }> };
 
@@ -95,6 +96,16 @@ export async function PUT(request: Request, context: Params) {
       return NextResponse.json({ error: "Zona no válida" }, { status: 400 });
     }
 
+    if (name) {
+      const nameLength = normalizeName(name).length;
+      if (nameLength < 7) {
+        return NextResponse.json({ error: "Nombre y apellido demasiado corto" }, { status: 400 });
+      }
+      if (nameLength > 25) {
+        return NextResponse.json({ error: "Nombre y apellido demasiado largo" }, { status: 400 });
+      }
+    }
+
     if (!name && !zone && reminder_enabled === undefined) {
       return NextResponse.json(
         { error: "Debes enviar al menos un campo para actualizar" },
@@ -116,7 +127,7 @@ export async function PUT(request: Request, context: Params) {
     const updated = await prisma.users.update({
       where: { id: player.id },
       data: {
-        ...(name ? { name } : {}),
+        ...(name ? { name: normalizeName(name) } : {}),
         ...(zone ? { zone } : {}),
         ...(reminder_enabled !== undefined ? { reminder_enabled: Boolean(reminder_enabled) } : {}),
         updated_at: new Date(),

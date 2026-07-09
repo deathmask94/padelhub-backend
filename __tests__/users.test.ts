@@ -59,10 +59,12 @@ describe("👥 PRUEBAS UNITARIAS - GESTIÓN DE USUARIOS Y PERFILES", () => {
         rut: 12345678,
         dv_rut: "5",
         phone: "+56912345678",
-        name: "Felipe Martínez",
+        nombre: "Felipe",
+        apellido: "Martínez",
+        username: "felipe.martinez",
         password: "claveSegura123",
         zone: "Concepción",
-        gender: "masculino"
+        gender: "Masculino"
       }),
     });
 

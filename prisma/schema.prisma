@@ -109,6 +109,8 @@ model users {
   email                 String?                 @unique @db.VarChar(255)
   phone                 String                  @unique @db.VarChar(20)
   name                  String                  @db.VarChar(100)
+  last_name             String?                 @db.VarChar(25)
+  username              String?                 @unique @db.VarChar(25)
   password_hash         String                  @db.VarChar(255)
   photo_url             String?                 @db.VarChar(500)
   birth_date            DateTime?               @db.Date
@@ -253,8 +255,8 @@ enum user_role {
 }
 
 enum gender {
-  masculino
-  femenino
+  Masculino
+  Femenino
 }
 
 enum winner_team {

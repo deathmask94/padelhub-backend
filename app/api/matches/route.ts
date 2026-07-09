@@ -17,9 +17,9 @@ export async function POST(request: Request) {
       );
     }
 
-    if (gender_preference && gender_preference !== "masculino" && gender_preference !== "femenino") {
+    if (gender_preference && gender_preference !== "Masculino" && gender_preference !== "Femenino") {
       return NextResponse.json(
-        { error: "gender_preference debe ser 'masculino', 'femenino' o vacío" },
+        { error: "gender_preference debe ser 'Masculino', 'Femenino' o vacío" },
         { status: 400 }
       );
     }
