@@ -40,8 +40,10 @@ export async function POST(request: Request, context: Params) {
 
     if (accept) {
       const maxPlayers    = MAX_PLAYERS[match.format] ?? 4;
+      // Solo cuenta jugadores que YA confirmaron (no los que siguen 'pending'):
+      // el partido no esta completo mientras falten respuestas.
       const activeAfter   = match.match_players.filter(
-        (p) => p.user_id !== userId && p.status !== 'rejected',
+        (p) => p.user_id !== userId && p.status === 'confirmed',
       ).length + 1;
 
       if (activeAfter >= maxPlayers - 1) {
@@ -50,6 +52,12 @@ export async function POST(request: Request, context: Params) {
           data:  { status: 'confirmed', updated_at: new Date() },
         });
       }
+
+      await notify(
+        match.organizer_id,
+        'Invitación aceptada',
+        `${myEntry.users.name} aceptó tu invitación en ${match.club}`
+      );
     } else {
       await notify(
         match.organizer_id,

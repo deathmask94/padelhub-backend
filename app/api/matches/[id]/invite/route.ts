@@ -24,7 +24,11 @@ export async function POST(request: Request, context: Params) {
 
     const body = await request.json();
     const invitedUserId: string = body.userId;
+    const team: 'team_a' | 'team_b' | undefined = body.team;
     if (!invitedUserId) return NextResponse.json({ error: 'userId requerido' }, { status: 400 });
+    if (team && team !== 'team_a' && team !== 'team_b') {
+      return NextResponse.json({ error: "team debe ser 'team_a' o 'team_b'" }, { status: 400 });
+    }
 
     const match = await prisma.matches.findUnique({
       where:   { id: matchId },
@@ -47,11 +51,19 @@ export async function POST(request: Request, context: Params) {
       return NextResponse.json({ error: 'El partido ya está completo' }, { status: 400 });
     }
 
+    if (team) {
+      const maxPerTeam = Math.floor(maxPlayers / 2);
+      const teamCount  = match.match_players.filter((p) => p.team === team).length;
+      if (teamCount >= maxPerTeam) {
+        return NextResponse.json({ error: 'Ese equipo ya está completo' }, { status: 400 });
+      }
+    }
+
     const player = await prisma.match_players.create({
       data: {
         match_id: matchId,
         user_id:  invitedUserId,
-        team:     match.match_players.length % 2 === 0 ? 'team_a' : 'team_b',
+        team:     team ?? (match.match_players.length % 2 === 0 ? 'team_a' : 'team_b'),
         status:   'pending',
       },
     });
