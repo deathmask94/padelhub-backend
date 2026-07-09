@@ -12,6 +12,7 @@ const RESTORE_ORDER = [
   'match_results',
   'mmr_history',
   'match_reminders',
+  'player_ratings',
   'admin_audit_logs',
 ];
 

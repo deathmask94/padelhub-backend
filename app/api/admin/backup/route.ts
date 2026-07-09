@@ -7,8 +7,11 @@ export async function GET(request: Request) {
   if (!admin) return unauthorizedResponse();
 
   try {
+    // notifications es efimero (se autoexpira a los 7 dias) y no aporta valor
+    // en un respaldo de recuperacion, asi que se excluye del export.
+    const EXCLUDED_MODELS = ['notifications'];
     const modelNames = Object.keys(prisma).filter(
-      (key) => !key.startsWith('_') && !key.startsWith('$'),
+      (key) => !key.startsWith('_') && !key.startsWith('$') && !EXCLUDED_MODELS.includes(key),
     );
 
     const fullBackupData: Record<string, unknown> = {};
