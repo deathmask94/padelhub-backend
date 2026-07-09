@@ -16,9 +16,11 @@ export async function GET(request: Request) {
     const mmr_min = searchParams.get('mmr_min');
     const mmr_max = searchParams.get('mmr_max');
 
-    // q es opcional: si tiene menos de 2 chars simplemente no filtra por nombre
-    const nameFilter = q.length >= 2
-      ? { name: { contains: q, mode: 'insensitive' as const } }
+    // q es opcional: si tiene menos de 2 chars simplemente no filtra.
+    // Se busca solo por @usuario (unico) a proposito, para evitar listas
+    // largas de nombres duplicados (ej. varios "Juan Perez").
+    const usernameFilter = q.length >= 2
+      ? { username: { contains: q.replace(/^@+/, ''), mode: 'insensitive' as const } }
       : {};
 
     const users = await prisma.users.findMany({
@@ -26,7 +28,7 @@ export async function GET(request: Request) {
         is_active: true,
         role: "player",
         id: { not: userId },
-        ...nameFilter,
+        ...usernameFilter,
         ...(level   ? { level: level as never }                            : {}),
         ...(zone    ? { zone }                                              : {}),
         ...(mmr_min || mmr_max ? {
@@ -36,7 +38,7 @@ export async function GET(request: Request) {
           },
         } : {}),
       },
-      select:  { id: true, name: true, photo_url: true, level: true, mmr: true, zone: true },
+      select:  { id: true, name: true, username: true, photo_url: true, level: true, mmr: true, zone: true },
       orderBy: { mmr: 'desc' },
       take:    20,
     });

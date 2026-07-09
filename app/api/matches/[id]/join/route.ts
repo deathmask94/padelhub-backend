@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifyToken } from '@/lib/jwt';
+import { notify } from '@/lib/notify';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -33,8 +34,9 @@ export async function POST(request: Request, context: Params) {
       return NextResponse.json({ error: 'No puedes unirte a tu propio partido como jugador' }, { status: 400 });
     }
 
+    const me = await prisma.users.findUnique({ where: { id: userId }, select: { gender: true, name: true } });
+
     if (match.gender_preference) {
-      const me = await prisma.users.findUnique({ where: { id: userId }, select: { gender: true } });
       if (me?.gender !== match.gender_preference) {
         const label = match.gender_preference === 'Masculino' ? 'hombres' : 'mujeres';
         return NextResponse.json({ error: `Este partido es solo para ${label}` }, { status: 403 });
@@ -71,6 +73,12 @@ export async function POST(request: Request, context: Params) {
         data:  { status: 'confirmed', updated_at: new Date() },
       });
     }
+
+    await notify(
+      match.organizer_id,
+      'Nuevo jugador en tu partido',
+      `${me?.name ?? 'Alguien'} se unió a tu partido en ${match.club}`
+    );
 
     return NextResponse.json({ message: '¡Te has unido al partido!', player }, { status: 201 });
   } catch (error: unknown) {

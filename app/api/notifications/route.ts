@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifyToken } from '@/lib/jwt';
 
-const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
 export async function GET(request: Request) {
   try {
@@ -11,7 +11,14 @@ export async function GET(request: Request) {
     if (!token) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     const { userId } = await verifyToken(token);
 
-    const since = new Date(Date.now() - THIRTY_DAYS_MS);
+    const since = new Date(Date.now() - SEVEN_DAYS_MS);
+
+    // Limpieza: las notificaciones son efimeras, no un registro historico.
+    // Se borran aca (en vez de depender de un cron, poco confiable en serverless)
+    // para que la tabla no crezca sin limite.
+    await prisma.notifications.deleteMany({
+      where: { user_id: userId, created_at: { lt: since } },
+    }).catch(() => {});
 
     const notifications = await prisma.notifications.findMany({
       where:   { user_id: userId, created_at: { gte: since } },

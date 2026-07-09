@@ -10,6 +10,7 @@ jest.mock("@/lib/prisma", () => ({
     notifications: {
       findMany:    jest.fn(),
       updateMany:  jest.fn(),
+      deleteMany:  jest.fn().mockResolvedValue({ count: 0 }),
     },
   },
 }));
