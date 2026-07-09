@@ -1,0 +1,19 @@
+name: Recordatorios de partido
+
+# Vercel Cron (crons en vercel.json) exige un intervalo de al menos 1 dia
+# en el plan Hobby y rechaza el deploy entero si no se respeta (asi
+# rompimos el deploy sin darnos cuenta). GitHub Actions no tiene esa
+# restriccion, asi que el cron vive aca en su lugar.
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  send-reminders:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Llamar a /api/reminders/send
+        run: |
+          curl -sf -X GET "https://padelhub-backend01.vercel.app/api/reminders/send" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"

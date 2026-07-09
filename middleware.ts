@@ -17,7 +17,6 @@ function corsHeaders(origin: string | null): Record<string, string> {
     'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Vary': 'Origin',
-    'X-Cors-Canary': 'v2',
   };
   if (origin && ALLOWED_ORIGINS.has(origin)) {
     headers['Access-Control-Allow-Origin'] = origin;
