@@ -1,8 +1,12 @@
 import { SignJWT, jwtVerify } from 'jose';
 
-const secret = new TextEncoder().encode(
-  process.env.JWT_SECRET ?? 'dev-secret-please-change-in-production'
-);
+// Sin fallback: si JWT_SECRET no esta seteado, mejor que la app truene de
+// inmediato a que emita/valide tokens con un secreto publico conocido.
+if (!process.env.JWT_SECRET) {
+  throw new Error('JWT_SECRET no esta configurado. La app no puede arrancar sin el.');
+}
+
+const secret = new TextEncoder().encode(process.env.JWT_SECRET);
 
 export async function signToken(
   payload:   { userId: string; role: string },

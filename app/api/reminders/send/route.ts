@@ -14,9 +14,16 @@ function formatTime(d: Date) { return d.toISOString().substring(11, 16); }
 const WINDOW = 15 * 60 * 1000;
 
 export async function GET(request: Request) {
-  // Protección por secret para que solo el cron de Vercel pueda llamarlo
-  const secret = request.headers.get('x-cron-secret') ?? new URL(request.url).searchParams.get('secret');
-  if (secret !== process.env.CRON_SECRET) {
+  // Proteccion por secret para que solo el cron de Vercel pueda llamarlo.
+  // Vercel Cron Jobs manda automaticamente 'Authorization: Bearer <CRON_SECRET>'
+  // cuando esa env var existe en el proyecto; se mantienen los otros dos
+  // formatos por compatibilidad con llamadas manuales/de prueba.
+  const authHeader   = request.headers.get('authorization');
+  const bearerSecret = authHeader?.replace('Bearer ', '');
+  const secret = bearerSecret
+    ?? request.headers.get('x-cron-secret')
+    ?? new URL(request.url).searchParams.get('secret');
+  if (!secret || secret !== process.env.CRON_SECRET) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
   }
 

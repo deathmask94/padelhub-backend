@@ -7,18 +7,8 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     '/api/admin/backup': ['./prisma/schema.prisma'],
   },
-  async headers() {
-    return [
-      {
-        source: '/api/:path*',
-        headers: [
-          { key: 'Access-Control-Allow-Origin',  value: '*' },
-          { key: 'Access-Control-Allow-Methods', value: 'GET, POST, PUT, PATCH, DELETE, OPTIONS' },
-          { key: 'Access-Control-Allow-Headers', value: 'Content-Type, Authorization' },
-        ],
-      },
-    ];
-  },
+  // Los headers CORS los pone middleware.ts (necesita reflejar el Origin
+  // segun un allow-list, algo que este helper estatico no puede hacer).
 };
 
 export default nextConfig;
