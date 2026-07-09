@@ -10,19 +10,30 @@ export async function GET(request: Request) {
     await verifyToken(token);
 
     const { searchParams } = new URL(request.url);
-    const zone  = searchParams.get('zone') ?? undefined;
-    const limit = Math.min(parseInt(searchParams.get('limit') ?? '20'), 50);
+    const zone     = searchParams.get('zone') ?? undefined;
+    const page     = Math.max(1, parseInt(searchParams.get('page') ?? '1'));
+    const pageSize = 10;
 
-    const players = await prisma.users.findMany({
-      where:   { ...(zone ? { zone } : {}), is_active: true, role: "player" },
-      orderBy: { mmr: 'desc' },
-      take:    limit,
-      select:  { id: true, name: true, photo_url: true, level: true, mmr: true, zone: true },
+    const where = { ...(zone ? { zone } : {}), is_active: true, role: "player" };
+
+    const [players, total] = await Promise.all([
+      prisma.users.findMany({
+        where,
+        orderBy: { mmr: 'desc' },
+        skip:    (page - 1) * pageSize,
+        take:    pageSize,
+        select:  { id: true, name: true, photo_url: true, level: true, mmr: true, zone: true },
+      }),
+      prisma.users.count({ where }),
+    ]);
+
+    return NextResponse.json({
+      players: players.map((p, i) => ({ position: (page - 1) * pageSize + i + 1, ...p })),
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
     });
-
-    return NextResponse.json(
-      players.map((p, i) => ({ position: i + 1, ...p }))
-    );
   } catch (error) {
     console.error('[RANKING GET]', error);
     return NextResponse.json({ error: 'Error al obtener el ranking' }, { status: 500 });
