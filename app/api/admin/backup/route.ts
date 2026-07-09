@@ -40,7 +40,7 @@ export async function GET(request: Request) {
     await prisma.admin_audit_logs.create({
       data: {
         admin_id: admin.userId,
-        action:   'BACKUP_DOWNLOAD',
+        action:   'BACKUP_DOWNLOADED',
         details:  `${totalRecordsCount} registros exportados en ${modelNames.length} tablas`,
         ip,
       },

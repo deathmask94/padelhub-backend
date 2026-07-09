@@ -124,13 +124,32 @@ describe("🔄 PRUEBAS UNITARIAS - AUTH (REFRESH TOKEN)", () => {
     expect(res.status).toBe(401);
   });
 
+  it("Debería retornar 403 si la cuenta del usuario está suspendida", async () => {
+    (prisma.refresh_tokens.findFirst as jest.Mock).mockResolvedValue({
+      id:         "rt-id",
+      user_id:    "user-uuid",
+      token:      "token-valido",
+      expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      users:      { id: "user-uuid", role: "player", is_active: false },
+    });
+    (prisma.refresh_tokens.delete as jest.Mock).mockResolvedValue({});
+
+    const req = new Request("http://localhost:3000/api/auth/refresh", {
+      method: "POST",
+      body:   JSON.stringify({ refreshToken: "token-valido" }),
+    });
+    const res = await refreshHandler(req);
+    expect(res.status).toBe(403);
+    expect(prisma.refresh_tokens.delete).toHaveBeenCalledWith({ where: { id: "rt-id" } });
+  });
+
   it("Debería retornar 200 con nuevo token y refresh token rotado", async () => {
     (prisma.refresh_tokens.findFirst as jest.Mock).mockResolvedValue({
       id:         "rt-id",
       user_id:    "user-uuid",
       token:      "token-valido",
       expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-      users:      { id: "user-uuid", role: "player" },
+      users:      { id: "user-uuid", role: "player", is_active: true },
     });
     (prisma.refresh_tokens.delete as jest.Mock).mockResolvedValue({});
     (prisma.refresh_tokens.create as jest.Mock).mockResolvedValue({

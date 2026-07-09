@@ -80,7 +80,7 @@ export async function POST(request: Request) {
   await prisma.admin_audit_logs.create({
     data: {
       admin_id: admin.userId,
-      action:   'BACKUP_RESTORE',
+      action:   'BACKUP_RESTORED',
       details:  `Importación desde backup del ${body.backup_info.backup_date}. ${totalInserted} registros insertados.`,
       ip,
     },

@@ -12,7 +12,7 @@ export async function POST(request: Request) {
 
     const stored = await prisma.refresh_tokens.findFirst({
       where: { token: refreshToken },
-      include: { users: { select: { id: true, role: true } } },
+      include: { users: { select: { id: true, role: true, is_active: true } } },
     });
 
     if (!stored || stored.expires_at < new Date()) {
@@ -20,6 +20,11 @@ export async function POST(request: Request) {
         await prisma.refresh_tokens.delete({ where: { id: stored.id } });
       }
       return NextResponse.json({ error: 'Token inválido o expirado' }, { status: 401 });
+    }
+
+    if (!stored.users.is_active) {
+      await prisma.refresh_tokens.delete({ where: { id: stored.id } });
+      return NextResponse.json({ error: 'Cuenta suspendida' }, { status: 403 });
     }
 
     // Rotar: eliminar el viejo y crear uno nuevo

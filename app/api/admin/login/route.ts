@@ -28,7 +28,7 @@ export async function POST(request: Request) {
     await prisma.admin_audit_logs.create({
       data: {
         admin_id: user.id,
-        action:   'LOGIN',
+        action:   'ADMIN_LOGIN',
         details:  `Acceso desde ${ip}`,
         ip,
       },
