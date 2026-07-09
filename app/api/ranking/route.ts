@@ -14,7 +14,8 @@ export async function GET(request: Request) {
     const page     = Math.max(1, parseInt(searchParams.get('page') ?? '1'));
     const pageSize = 10;
 
-    const where = { ...(zone ? { zone } : {}), is_active: true, role: "player" };
+    const where: Record<string, unknown> = { is_active: true, role: 'player' };
+    if (zone) where.zone = zone;
 
     // $transaction (no Promise.all): la conexion pooled corre con
     // connection_limit=1, asi que dos queries concurrentes sobre la misma
