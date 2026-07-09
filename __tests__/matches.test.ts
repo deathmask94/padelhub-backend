@@ -59,7 +59,7 @@ describe("🎾 PRUEBAS UNITARIAS - PARTIDOS", () => {
       method: "POST",
       body: JSON.stringify({
         organizer_id: "9e094ce9-64a6-44de-7806-744cdbb02695",
-        club: "Padel Break Club",
+        club: "Pádel Club Viña del Mar",
         format: "doubles",
         match_date: "2026-05-20",
         match_time: "19:30:00"

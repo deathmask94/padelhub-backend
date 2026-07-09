@@ -1,5 +1,15 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma"; 
+import { prisma } from "@/lib/prisma";
+
+// Una cancha por ciudad — debe coincidir con el listado del frontend
+// (PadelHub-FrontEnd/app/routes/crear.tsx y matchmaking.tsx).
+const VALID_CLUBS = [
+  "Pádel Club Viña del Mar",
+  "Pádel Club Valparaíso",
+  "Pádel Club Quilpué",
+  "Pádel Club Villa Alemana",
+  "Pádel Club Concón",
+];
 
 // ==========================================
 // 1. POST: Crear un nuevo partido
@@ -13,6 +23,13 @@ export async function POST(request: Request) {
     if (!organizer_id || !club || !match_date || !match_time) {
       return NextResponse.json(
         { error: "Faltan campos obligatorios (organizer_id, club, match_date, match_time)" },
+        { status: 400 }
+      );
+    }
+
+    if (!VALID_CLUBS.includes(club)) {
+      return NextResponse.json(
+        { error: "Club no válido. Elige una de las canchas disponibles." },
         { status: 400 }
       );
     }
