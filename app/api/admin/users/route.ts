@@ -18,7 +18,14 @@ export async function GET(request: Request) {
   const where: Record<string, unknown> = {};
 
   if (q.length >= 2) {
-    where.name = { contains: q, mode: 'insensitive' };
+    const orConditions: Record<string, unknown>[] = [
+      { name:     { contains: q, mode: 'insensitive' } },
+      { username: { contains: q.replace(/^@+/, ''), mode: 'insensitive' } },
+    ];
+    if (/^\d+$/.test(q)) {
+      orConditions.push({ rut: parseInt(q, 10) });
+    }
+    where.OR = orConditions;
   }
   if (zone)  where.zone  = zone;
   if (level) where.level = level as never;
@@ -29,7 +36,7 @@ export async function GET(request: Request) {
     prisma.users.findMany({
       where,
       select: {
-        id: true, rut: true, dv_rut: true, name: true, email: true,
+        id: true, rut: true, dv_rut: true, name: true, username: true, email: true,
         phone: true, level: true, zone: true, mmr: true,
         role: true, is_active: true, created_at: true,
         photo_url: true,
