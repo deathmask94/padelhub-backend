@@ -16,7 +16,10 @@ export async function GET(request: Request) {
 
     const where = { ...(zone ? { zone } : {}), is_active: true, role: "player" };
 
-    const [players, total] = await Promise.all([
+    // $transaction (no Promise.all): la conexion pooled corre con
+    // connection_limit=1, asi que dos queries concurrentes sobre la misma
+    // conexion rompen la request. El resto del panel admin ya sigue este patron.
+    const [players, total] = await prisma.$transaction([
       prisma.users.findMany({
         where,
         orderBy: { mmr: 'desc' },
