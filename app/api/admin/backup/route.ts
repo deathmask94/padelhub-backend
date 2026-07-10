@@ -17,9 +17,10 @@ export async function GET(request: Request) {
   if (!admin) return unauthorizedResponse();
 
   try {
-    // notifications es efimero (se autoexpira a los 7 dias) y no aporta valor
-    // en un respaldo de recuperacion, asi que se excluye del export.
-    const EXCLUDED_MODELS = ['notifications'];
+    // notifications y push_tokens son efimeros (el primero se autoexpira a
+    // los 7 dias; el segundo se re-registra solo cada vez que la app abre
+    // con sesion activa) y no aportan valor en un respaldo de recuperacion.
+    const EXCLUDED_MODELS = ['notifications', 'push_tokens'];
     const modelNames = Object.keys(prisma).filter(
       (key) => !key.startsWith('_') && !key.startsWith('$') && !EXCLUDED_MODELS.includes(key),
     );
