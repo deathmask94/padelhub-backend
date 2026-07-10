@@ -3,6 +3,17 @@ import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { signToken } from "@/lib/jwt";
 import { normalizeName, normalizePhone, normalizeUsername } from "@/lib/normalize";
+import { mmrToLevel } from "@/lib/mmrToLevel";
+
+// Nivel de habilidad autoevaluado al registrarse (distinto de la categoria
+// 1ra-7ma+, que se deriva del MMR real jugando partidos): solo se usa para
+// elegir con que MMR inicial arranca el usuario.
+const DEFAULT_STARTING_MMR = 1000;
+const STARTING_MMR: Record<string, number> = {
+  Avanzado:     2500, // arranca en 2da categoria
+  Intermedio:   1500, // arranca en 4ta categoria
+  Principiante:  500, // arranca en 6ta categoria
+};
 
 const CORS = {
   'Access-Control-Allow-Origin':  '*',
@@ -50,7 +61,8 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { rut, dv_rut, phone, nombre, apellido, username, password, zone, email, birth_date, gender } = body;
+    const { rut, dv_rut, phone, nombre, apellido, username, password, zone, email, birth_date, gender, nivel_estimado } = body;
+    const startingMmr = STARTING_MMR[nivel_estimado] ?? DEFAULT_STARTING_MMR;
 
     if (!rut || !dv_rut || !phone || !nombre || !apellido || !username || !password || !zone || !gender) {
       return NextResponse.json(
@@ -148,6 +160,8 @@ export async function POST(request: Request) {
         password_hash: hashedPassword,
         zone,
         gender,
+        mmr:           startingMmr,
+        level:         mmrToLevel(startingMmr),
         ...(birth_date ? { birth_date: new Date(birth_date) } : {}),
       },
     });
