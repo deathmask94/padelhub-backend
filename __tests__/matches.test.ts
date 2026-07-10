@@ -147,7 +147,7 @@ describe("🏆 PRUEBAS UNITARIAS - REGISTRAR RESULTADO (POST /matches/[id]/resul
 
     const req = new Request("http://localhost:3000/api/matches/match-uuid/result", {
       method: "POST", headers: { Authorization: "Bearer token" },
-      body:   JSON.stringify({ winner: "team_a", organizer_team: "team_a" }),
+      body:   JSON.stringify({ winner: "team_a", organizer_team: "team_a", score_team_a: "6-3", score_team_b: "3-6" }),
     });
     const ctx = { params: Promise.resolve({ id: "match-uuid" }) };
     const res = await resultMatchHandler(req, ctx as any);
@@ -160,6 +160,26 @@ describe("🏆 PRUEBAS UNITARIAS - REGISTRAR RESULTADO (POST /matches/[id]/resul
     const req = new Request("http://localhost:3000/api/matches/match-uuid/result", {
       method: "POST", headers: { Authorization: "Bearer token" },
       body:   JSON.stringify({ winner: "team_a", organizer_team: "team_a" }),
+    });
+    const ctx = { params: Promise.resolve({ id: "match-uuid" }) };
+    const res = await resultMatchHandler(req, ctx as any);
+    expect(res.status).toBe(400);
+  });
+
+  it("Debería retornar 400 si winner es 'draw' (en pádel no hay empate)", async () => {
+    const req = new Request("http://localhost:3000/api/matches/match-uuid/result", {
+      method: "POST", headers: { Authorization: "Bearer token" },
+      body:   JSON.stringify({ winner: "draw", organizer_team: "team_a", score_team_a: "6-3", score_team_b: "3-6" }),
+    });
+    const ctx = { params: Promise.resolve({ id: "match-uuid" }) };
+    const res = await resultMatchHandler(req, ctx as any);
+    expect(res.status).toBe(400);
+  });
+
+  it("Debería retornar 400 si falta el score o no tiene el formato de games por set", async () => {
+    const req = new Request("http://localhost:3000/api/matches/match-uuid/result", {
+      method: "POST", headers: { Authorization: "Bearer token" },
+      body:   JSON.stringify({ winner: "team_a", organizer_team: "team_a", score_team_a: "4444444", score_team_b: "222" }),
     });
     const ctx = { params: Promise.resolve({ id: "match-uuid" }) };
     const res = await resultMatchHandler(req, ctx as any);

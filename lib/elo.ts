@@ -16,14 +16,14 @@ export interface MMRChange {
 export function calculateELO(
   teamA:  PlayerMMR[],
   teamB:  PlayerMMR[],
-  winner: 'team_a' | 'team_b' | 'draw',
+  winner: 'team_a' | 'team_b',
 ): MMRChange[] {
   const avgA = teamA.reduce((s, p) => s + p.mmr, 0) / teamA.length;
   const avgB = teamB.reduce((s, p) => s + p.mmr, 0) / teamB.length;
 
   const expA   = expectedScore(avgA, avgB);
   const expB   = 1 - expA;
-  const actA   = winner === 'team_a' ? 1 : winner === 'draw' ? 0.5 : 0;
+  const actA   = winner === 'team_a' ? 1 : 0;
   const actB   = 1 - actA;
 
   const changes: MMRChange[] = [];

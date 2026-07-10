@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifyToken } from '@/lib/jwt';
+import { hasMatchStarted } from '@/lib/matchTime';
 
-async function autoTransitionConfirmed(matchIds: string[], matches: { id: string; status: string; match_time: Date }[]) {
+async function autoTransitionConfirmed(matches: { id: string; status: string; match_date: Date; match_time: Date }[]) {
   const toUpdate = matches.filter(
-    (m) => m.status === 'confirmed' && Date.now() >= new Date(m.match_time).getTime()
+    (m) => m.status === 'confirmed' && hasMatchStarted(m.match_date, m.match_time)
   );
   if (toUpdate.length === 0) return;
   await prisma.matches.updateMany({
@@ -35,11 +36,11 @@ export async function GET(request: Request) {
       orderBy: { match_date: 'asc' },
     });
 
-    await autoTransitionConfirmed(matches.map((m) => m.id), matches);
+    await autoTransitionConfirmed(matches);
 
     const result = matches.map((m) => ({
       ...m,
-      status: m.status === 'confirmed' && Date.now() >= new Date(m.match_time).getTime()
+      status: m.status === 'confirmed' && hasMatchStarted(m.match_date, m.match_time)
         ? 'in_progress' : m.status,
     }));
 

@@ -17,14 +17,23 @@ export async function POST(request: Request, context: Params) {
 
     const body = await request.json();
     const { winner, organizer_team, score_team_a, score_team_b } = body as {
-      winner:         'team_a' | 'team_b' | 'draw';
+      winner:         'team_a' | 'team_b';
       organizer_team: 'team_a' | 'team_b';
       score_team_a?:  string;
       score_team_b?:  string;
     };
 
-    if (!winner || !organizer_team) {
-      return NextResponse.json({ error: 'winner y organizer_team son requeridos' }, { status: 400 });
+    if (winner !== 'team_a' && winner !== 'team_b') {
+      return NextResponse.json({ error: "winner debe ser 'team_a' o 'team_b' (en pádel no hay empate)" }, { status: 400 });
+    }
+    if (organizer_team !== 'team_a' && organizer_team !== 'team_b') {
+      return NextResponse.json({ error: 'organizer_team es requerido' }, { status: 400 });
+    }
+    // Cada set aporta un digito por equipo (ej. "6-4-6" = 3 sets); se
+    // exige el score, ya no es opcional.
+    const SCORE_PATTERN = /^\d(-\d){1,2}$/;
+    if (!score_team_a || !score_team_b || !SCORE_PATTERN.test(score_team_a) || !SCORE_PATTERN.test(score_team_b)) {
+      return NextResponse.json({ error: 'El score es obligatorio y debe tener el formato de games por set, ej. 6-4-6' }, { status: 400 });
     }
 
     const match = await prisma.matches.findUnique({
