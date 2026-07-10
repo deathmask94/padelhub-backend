@@ -20,7 +20,7 @@ model match_players {
   result_confirmed     Boolean       @default(false)
   result_confirmed_at  DateTime?     @db.Timestamp(6)
   matches   matches       @relation(fields: [match_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  users     users         @relation(fields: [user_id], references: [id], onUpdate: NoAction)
+  users     users         @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@unique([match_id, user_id], map: "uq_match_player")
   @@index([match_id], map: "idx_match_players_match")
@@ -42,7 +42,7 @@ model match_results {
   confirmed_by   String?     @db.Uuid
   confirmed_at   DateTime?   @db.Timestamp(6)
   matches        matches     @relation(fields: [match_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  users          users       @relation(fields: [registered_by], references: [id], onUpdate: NoAction)
+  users          users       @relation(fields: [registered_by], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([match_id], map: "idx_match_results_match")
 }
