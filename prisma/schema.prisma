@@ -115,6 +115,7 @@ model users {
   name                  String                  @db.VarChar(100)
   last_name             String?                 @db.VarChar(25)
   username              String?                 @unique @db.VarChar(25)
+  username_changed_at   DateTime?               @db.Timestamp(6)
   password_hash         String                  @db.VarChar(255)
   photo_url             String?                 @db.VarChar(500)
   birth_date            DateTime?               @db.Date

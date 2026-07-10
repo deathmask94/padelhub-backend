@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { normalizeName } from "@/lib/normalize";
+import { normalizeName, normalizeUsername } from "@/lib/normalize";
+
+const USERNAME_COOLDOWN_MS = 30 * 24 * 60 * 60 * 1000;
 
 type Params = { params: Promise<{ rut: string }> };
 
@@ -89,7 +91,7 @@ export async function PUT(request: Request, context: Params) {
   try {
     const { rut } = await context.params;
     const body = await request.json();
-    const { name, zone, reminder_enabled } = body;
+    const { name, zone, reminder_enabled, username } = body;
 
     const VALID_ZONES = ["Viña del Mar", "Valparaíso", "Quilpué", "Villa Alemana", "Concón"];
     if (zone && !VALID_ZONES.includes(zone)) {
@@ -106,7 +108,18 @@ export async function PUT(request: Request, context: Params) {
       }
     }
 
-    if (!name && !zone && reminder_enabled === undefined) {
+    let normalizedUsername: string | null = null;
+    if (username) {
+      normalizedUsername = normalizeUsername(username);
+      if (!normalizedUsername) {
+        return NextResponse.json(
+          { error: "El usuario debe tener 3-24 caracteres: letras, números, puntos o guión bajo" },
+          { status: 400 }
+        );
+      }
+    }
+
+    if (!name && !zone && reminder_enabled === undefined && !normalizedUsername) {
       return NextResponse.json(
         { error: "Debes enviar al menos un campo para actualizar" },
         { status: 400 }
@@ -124,12 +137,31 @@ export async function PUT(request: Request, context: Params) {
       );
     }
 
+    if (normalizedUsername && normalizedUsername !== player.username) {
+      if (player.username_changed_at) {
+        const nextAllowed = new Date(player.username_changed_at.getTime() + USERNAME_COOLDOWN_MS);
+        if (nextAllowed > new Date()) {
+          return NextResponse.json(
+            { error: `Solo puedes cambiar tu usuario una vez al mes. Podrás cambiarlo de nuevo el ${nextAllowed.toLocaleDateString("es-CL")}.` },
+            { status: 400 }
+          );
+        }
+      }
+      const taken = await prisma.users.findUnique({ where: { username: normalizedUsername } });
+      if (taken && taken.id !== player.id) {
+        return NextResponse.json({ error: "Ese nombre de usuario ya está en uso" }, { status: 400 });
+      }
+    }
+
     const updated = await prisma.users.update({
       where: { id: player.id },
       data: {
         ...(name ? { name: normalizeName(name) } : {}),
         ...(zone ? { zone } : {}),
         ...(reminder_enabled !== undefined ? { reminder_enabled: Boolean(reminder_enabled) } : {}),
+        ...(normalizedUsername && normalizedUsername !== player.username
+          ? { username: normalizedUsername, username_changed_at: new Date() }
+          : {}),
         updated_at: new Date(),
       },
     });
