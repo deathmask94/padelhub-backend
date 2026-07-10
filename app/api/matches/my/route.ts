@@ -33,7 +33,7 @@ export async function GET(request: Request) {
         users: { select: { name: true, phone: true } },
         match_players: { select: { user_id: true, status: true, team: true } },
       },
-      orderBy: { match_date: 'asc' },
+      orderBy: { match_date: 'desc' },
     });
 
     await autoTransitionConfirmed(matches);
