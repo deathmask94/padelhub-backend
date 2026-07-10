@@ -44,21 +44,11 @@ export async function POST(request: Request) {
 
     const finalFormat = format || "doubles";
 
-    // En dobles el organizador debe elegir su propio equipo ANTES de poder
-    // invitar a nadie -- si no, nadie sabe en que equipo esta el organizador
-    // hasta que el mismo lo revela al registrar el resultado (bug real:
-    // permitia que el organizador "eligiera" un equipo que ya estaba lleno
-    // por los invitados). Con el equipo fijo desde la creacion, invite/join
-    // y el cupo por equipo pueden contarlo desde el principio.
-    const organizerTeam: 'team_a' | 'team_b' | undefined = body.organizer_team;
-    if (finalFormat === "doubles") {
-      if (organizerTeam !== "team_a" && organizerTeam !== "team_b") {
-        return NextResponse.json(
-          { error: "Debes elegir en qué equipo juegas tú antes de crear un partido de dobles" },
-          { status: 400 }
-        );
-      }
-    }
+    // En dobles el organizador tiene equipo fijo desde la creacion (siempre
+    // Equipo A) -- asi invite/join y el cupo por equipo pueden contarlo
+    // desde el principio, sin obligar al organizador a elegir nada (esa
+    // seleccion resultaba mas friccion que utilidad).
+    const organizerTeam: 'team_a' | null = finalFormat === "doubles" ? "team_a" : null;
 
     // Dobles siempre es casual (no afecta MMR); el modo competitivo (ranked)
     // solo existe en individual, ya sea via matchmaking o desafio directo.
@@ -89,7 +79,7 @@ export async function POST(request: Request) {
         status: "open",             // Estado inicial siempre abierto
         gender_preference: finalGenderPreference,
         is_ranked: isRanked,
-        organizer_team: finalFormat === "doubles" ? organizerTeam : null,
+        organizer_team: organizerTeam,
         match_date: formattedDate,
         match_time: formattedTime,
       },
