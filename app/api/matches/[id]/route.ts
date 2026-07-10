@@ -40,7 +40,7 @@ export async function GET(request: Request, context: Params) {
         },
         match_results: {
           select: {
-            registered_by: true, confirmed_by: true,
+            registered_by: true, confirmed_by: true, confirmed_at: true,
             score_team_a: true, score_team_b: true, winner: true,
           },
         },

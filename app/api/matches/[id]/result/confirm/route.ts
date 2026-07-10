@@ -7,10 +7,11 @@ import { notify } from '@/lib/notify';
 
 type Params = { params: Promise<{ id: string }> };
 
-// Confirma un resultado ya registrado por otro jugador (ver /result). Solo
-// aqui se aplica el MMR y se marca el partido como finalizado -- exige que
-// alguien distinto de quien registro lo confirme, para que el resultado no
-// quede a criterio de un solo jugador.
+// Confirma un resultado ya registrado por el organizador (ver /result). En
+// dobles todos los jugadores confirmados (menos quien registro) deben
+// confirmar antes de aplicar el MMR y cerrar el partido -- una sola
+// confirmacion no basta cuando hay compañeros de equipo con intereses en
+// juego. En singles esto se reduce naturalmente a "el rival confirma".
 export async function POST(request: Request, context: Params) {
   try {
     const { id: matchId } = await context.params;
@@ -25,7 +26,7 @@ export async function POST(request: Request, context: Params) {
         match_results: true,
         match_players: {
           where: { status: 'confirmed' },
-          include: { users: { select: { id: true, mmr: true } } },
+          include: { users: { select: { id: true, mmr: true, name: true } } },
         },
         users: { select: { id: true, mmr: true } },
       },
@@ -34,17 +35,37 @@ export async function POST(request: Request, context: Params) {
     if (!match) return NextResponse.json({ error: 'Partido no encontrado' }, { status: 404 });
     const result = match.match_results;
     if (!result) return NextResponse.json({ error: 'Todavía no se ha registrado un resultado para este partido' }, { status: 400 });
-    if (result.confirmed_by) return NextResponse.json({ error: 'El resultado ya fue confirmado' }, { status: 400 });
+    if (result.confirmed_at) return NextResponse.json({ error: 'El resultado ya fue confirmado' }, { status: 400 });
     if (result.registered_by === userId) {
       return NextResponse.json({ error: 'Quien registró el resultado no puede confirmarlo; debe hacerlo el rival' }, { status: 403 });
     }
 
-    const isOrganizer   = match.organizer_id === userId;
-    const isConfirmedPl = match.match_players.some((p) => p.user_id === userId);
-    if (!isOrganizer && !isConfirmedPl) {
+    const myPlayer = match.match_players.find((p) => p.user_id === userId);
+    if (!myPlayer) {
       return NextResponse.json({ error: 'Solo un jugador confirmado de este partido puede confirmar el resultado' }, { status: 403 });
     }
+    if (myPlayer.result_confirmed) {
+      return NextResponse.json({ error: 'Ya confirmaste este resultado' }, { status: 400 });
+    }
 
+    await prisma.match_players.update({
+      where: { id: myPlayer.id },
+      data:  { result_confirmed: true, result_confirmed_at: new Date() },
+    });
+
+    const pendingPlayers = match.match_players.filter(
+      (p) => p.user_id !== userId && !p.result_confirmed
+    );
+
+    if (pendingPlayers.length > 0) {
+      return NextResponse.json({
+        message: 'Confirmación registrada. Falta que el resto del equipo confirme el resultado.',
+        fully_confirmed: false,
+        pending: pendingPlayers.map((p) => p.users.name),
+      });
+    }
+
+    // Todos los jugadores confirmaron: aplicar MMR (si corresponde) y cerrar el partido.
     const organizerPlayer = { id: match.users.id, mmr: match.users.mmr };
     const teamA = match.match_players.filter((p) => p.team === 'team_a').map((p) => ({ id: p.users.id, mmr: p.users.mmr }));
     const teamB = match.match_players.filter((p) => p.team === 'team_b').map((p) => ({ id: p.users.id, mmr: p.users.mmr }));
@@ -83,7 +104,7 @@ export async function POST(request: Request, context: Params) {
         .map((p) => notify(p.id, `Resultado confirmado — ${match.club}`, scoreStr)),
     );
 
-    return NextResponse.json({ message: 'Resultado confirmado', changes });
+    return NextResponse.json({ message: 'Resultado confirmado', fully_confirmed: true, changes });
   } catch (error) {
     console.error('[MATCH RESULT CONFIRM ERROR]', error);
     return NextResponse.json({ error: 'Error al confirmar el resultado' }, { status: 500 });

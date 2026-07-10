@@ -33,6 +33,7 @@ jest.mock("@/lib/prisma", () => ({
     },
     match_players: {
       create: jest.fn(),
+      update: jest.fn().mockResolvedValue({}),
     },
     users: {
       findUnique: jest.fn(),
@@ -261,17 +262,36 @@ describe("🏆 PRUEBAS UNITARIAS - REGISTRAR RESULTADO (POST /matches/[id]/resul
 describe("✅ PRUEBAS UNITARIAS - CONFIRMAR RESULTADO (POST /matches/[id]/result/confirm)", () => {
   beforeEach(() => jest.clearAllMocks());
 
+  // Singles: un solo rival confirmado -- su confirmación ya es "todos".
   const MATCH_WITH_PENDING_RESULT = {
     id: "match-uuid", status: "confirmed", club: "Club Test",
     organizer_id: "organizer-uuid", is_ranked: true,
     users: { id: "organizer-uuid", mmr: 1000 },
     match_players: [
-      { user_id: "rival-uuid", status: "confirmed", team: "team_b", users: { id: "rival-uuid", mmr: 1000 } },
+      { id: "mp-rival", user_id: "rival-uuid", status: "confirmed", team: "team_b", result_confirmed: false, users: { id: "rival-uuid", mmr: 1000, name: "Rival" } },
     ],
     match_results: {
       registered_by: "organizer-uuid", organizer_team: "team_a",
       winner: "team_a", score_team_a: "6-3", score_team_b: "3-6",
-      confirmed_by: null,
+      confirmed_by: null, confirmed_at: null,
+    },
+  };
+
+  // Dobles: 3 jugadores confirmados ademas del organizador -- todos deben
+  // confirmar antes de que se aplique el MMR.
+  const DOUBLES_MATCH_WITH_PENDING_RESULT = {
+    id: "match-uuid", status: "confirmed", club: "Club Test",
+    organizer_id: "organizer-uuid", is_ranked: true,
+    users: { id: "organizer-uuid", mmr: 1000 },
+    match_players: [
+      { id: "mp-1", user_id: "p1-uuid", status: "confirmed", team: "team_a", result_confirmed: false, users: { id: "p1-uuid", mmr: 1000, name: "Jugador 1" } },
+      { id: "mp-2", user_id: "p2-uuid", status: "confirmed", team: "team_b", result_confirmed: false, users: { id: "p2-uuid", mmr: 1000, name: "Jugador 2" } },
+      { id: "mp-3", user_id: "p3-uuid", status: "confirmed", team: "team_b", result_confirmed: false, users: { id: "p3-uuid", mmr: 1000, name: "Jugador 3" } },
+    ],
+    match_results: {
+      registered_by: "organizer-uuid", organizer_team: "team_a",
+      winner: "team_a", score_team_a: "6-3", score_team_b: "3-6",
+      confirmed_by: null, confirmed_at: null,
     },
   };
 
@@ -292,10 +312,10 @@ describe("✅ PRUEBAS UNITARIAS - CONFIRMAR RESULTADO (POST /matches/[id]/result
     expect(res.status).toBe(400);
   });
 
-  it("Debería retornar 400 si el resultado ya fue confirmado", async () => {
+  it("Debería retornar 400 si el resultado ya fue confirmado por todos", async () => {
     (prisma.matches.findUnique as jest.Mock).mockResolvedValue({
       ...MATCH_WITH_PENDING_RESULT,
-      match_results: { ...MATCH_WITH_PENDING_RESULT.match_results, confirmed_by: "rival-uuid" },
+      match_results: { ...MATCH_WITH_PENDING_RESULT.match_results, confirmed_by: "rival-uuid", confirmed_at: new Date() },
     });
     const { verifyToken } = require("@/lib/jwt");
     verifyToken.mockResolvedValueOnce({ userId: "rival-uuid", role: "player" });
@@ -332,7 +352,23 @@ describe("✅ PRUEBAS UNITARIAS - CONFIRMAR RESULTADO (POST /matches/[id]/result
     expect(res.status).toBe(403);
   });
 
-  it("Debería confirmar y aplicar MMR si el partido es competitivo", async () => {
+  it("Debería retornar 400 si ese jugador ya había confirmado antes", async () => {
+    (prisma.matches.findUnique as jest.Mock).mockResolvedValue({
+      ...MATCH_WITH_PENDING_RESULT,
+      match_players: [{ ...MATCH_WITH_PENDING_RESULT.match_players[0], result_confirmed: true }],
+    });
+    const { verifyToken } = require("@/lib/jwt");
+    verifyToken.mockResolvedValueOnce({ userId: "rival-uuid", role: "player" });
+
+    const req = new Request("http://localhost:3000/api/matches/match-uuid/result/confirm", {
+      method: "POST", headers: { Authorization: "Bearer token" },
+    });
+    const ctx = { params: Promise.resolve({ id: "match-uuid" }) };
+    const res = await confirmResultHandler(req, ctx as any);
+    expect(res.status).toBe(400);
+  });
+
+  it("Singles: al confirmar el único rival, se aplica MMR de inmediato (partido competitivo)", async () => {
     (prisma.matches.findUnique as jest.Mock).mockResolvedValue(MATCH_WITH_PENDING_RESULT);
     (prisma.$transaction       as jest.Mock).mockResolvedValue([{}, {}, {}, {}, {}, {}]);
     const { verifyToken } = require("@/lib/jwt");
@@ -346,6 +382,7 @@ describe("✅ PRUEBAS UNITARIAS - CONFIRMAR RESULTADO (POST /matches/[id]/result
     const data = await res.json();
 
     expect(res.status).toBe(200);
+    expect(data.fully_confirmed).toBe(true);
     expect(data.changes).toHaveLength(2);
   });
 
@@ -364,7 +401,54 @@ describe("✅ PRUEBAS UNITARIAS - CONFIRMAR RESULTADO (POST /matches/[id]/result
     const data = await res.json();
 
     expect(res.status).toBe(200);
+    expect(data.fully_confirmed).toBe(true);
     expect(data.changes).toEqual([]);
     expect(calculateELO).not.toHaveBeenCalled();
+  });
+
+  it("Dobles: la primera confirmación NO aplica MMR ni finaliza -- faltan compañeros", async () => {
+    (prisma.matches.findUnique as jest.Mock).mockResolvedValue(DOUBLES_MATCH_WITH_PENDING_RESULT);
+    const { verifyToken } = require("@/lib/jwt");
+    verifyToken.mockResolvedValueOnce({ userId: "p1-uuid", role: "player" });
+
+    const req = new Request("http://localhost:3000/api/matches/match-uuid/result/confirm", {
+      method: "POST", headers: { Authorization: "Bearer token" },
+    });
+    const ctx  = { params: Promise.resolve({ id: "match-uuid" }) };
+    const res  = await confirmResultHandler(req, ctx as any);
+    const data = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(data.fully_confirmed).toBe(false);
+    expect(data.pending).toEqual(["Jugador 2", "Jugador 3"]);
+    expect(prisma.match_players.update).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: "mp-1" }, data: expect.objectContaining({ result_confirmed: true }) })
+    );
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("Dobles: recién cuando confirma el último jugador se aplica MMR y finaliza", async () => {
+    (prisma.matches.findUnique as jest.Mock).mockResolvedValue({
+      ...DOUBLES_MATCH_WITH_PENDING_RESULT,
+      match_players: [
+        { ...DOUBLES_MATCH_WITH_PENDING_RESULT.match_players[0], result_confirmed: true },
+        { ...DOUBLES_MATCH_WITH_PENDING_RESULT.match_players[1], result_confirmed: true },
+        DOUBLES_MATCH_WITH_PENDING_RESULT.match_players[2], // p3 confirma ahora
+      ],
+    });
+    (prisma.$transaction as jest.Mock).mockResolvedValue([{}, {}, {}, {}, {}, {}]);
+    const { verifyToken } = require("@/lib/jwt");
+    verifyToken.mockResolvedValueOnce({ userId: "p3-uuid", role: "player" });
+
+    const req = new Request("http://localhost:3000/api/matches/match-uuid/result/confirm", {
+      method: "POST", headers: { Authorization: "Bearer token" },
+    });
+    const ctx  = { params: Promise.resolve({ id: "match-uuid" }) };
+    const res  = await confirmResultHandler(req, ctx as any);
+    const data = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(data.fully_confirmed).toBe(true);
+    expect(data.changes).toHaveLength(2);
   });
 });
