@@ -21,16 +21,13 @@ export async function GET(_request: Request, context: Params) {
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
     const [
-      matchesPlayed,
-      wins,
       rankingPosition,
       totalInZone,
       recentSum,
       chartRaw,
       lastMatchRaw,
+      finishedMatches,
     ] = await Promise.all([
-      prisma.mmr_history.count({ where: { user_id: player.id } }),
-      prisma.mmr_history.count({ where: { user_id: player.id, delta: { gt: 0 } } }),
       prisma.users.count({ where: { zone: player.zone, mmr: { gt: player.mmr } } }),
       prisma.users.count({ where: { zone: player.zone } }),
       prisma.mmr_history.aggregate({
@@ -49,7 +46,38 @@ export async function GET(_request: Request, context: Params) {
         take:    5,
         include: { matches: { select: { club: true, match_date: true } } },
       }),
+      // Partidos/victorias/derrotas se calculan directo desde matches +
+      // match_results (no desde mmr_history, que tambien registra ajustes
+      // manuales de admin y no representa 1:1 partidos jugados). Se separan
+      // por is_ranked: "competitivo" vs "casual" (dobles siempre cae aca).
+      prisma.matches.findMany({
+        where: {
+          status: 'finished',
+          OR: [
+            { organizer_id: player.id },
+            { match_players: { some: { user_id: player.id, status: 'confirmed' } } },
+          ],
+        },
+        select: {
+          is_ranked:      true,
+          organizer_id:   true,
+          organizer_team: true,
+          match_results:  { select: { winner: true } },
+          match_players:  { where: { user_id: player.id }, select: { team: true } },
+        },
+      }),
     ]);
+
+    const competitive = { played: 0, wins: 0, losses: 0 };
+    const casual      = { played: 0, wins: 0, losses: 0 };
+    for (const m of finishedMatches) {
+      if (!m.match_results) continue;
+      const myTeam = m.organizer_id === player.id ? m.organizer_team : m.match_players[0]?.team;
+      const won    = !!myTeam && myTeam === m.match_results.winner;
+      const bucket = m.is_ranked ? competitive : casual;
+      bucket.played += 1;
+      if (won) bucket.wins += 1; else bucket.losses += 1;
+    }
 
     const { password_hash, ...userResponse } = player;
 
@@ -67,8 +95,8 @@ export async function GET(_request: Request, context: Params) {
         created_at: userResponse.created_at,
       },
       stats: {
-        matches_played:    matchesPlayed,
-        wins,
+        competitive,
+        casual,
         ranking_position:  rankingPosition + 1,
         total_in_zone:     totalInZone,
         mmr_variation_30d: recentSum._sum.delta ?? 0,

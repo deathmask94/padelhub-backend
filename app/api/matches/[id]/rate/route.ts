@@ -8,10 +8,10 @@ type Params = { params: Promise<{ id: string }> };
 const RATING_WINDOW_MS = 24 * 60 * 60 * 1000; // 24h
 
 interface RatingInput {
-  rated_id:    string;
-  fair_play:   number;
-  punctuality: number;
-  skill_level: number;
+  rated_id:     string;
+  fair_play:    number;
+  punctuality:  number;
+  companerismo: number;
 }
 
 export async function POST(request: Request, { params }: Params) {
@@ -61,7 +61,7 @@ export async function POST(request: Request, { params }: Params) {
       if (!confirmedIds.has(r.rated_id)) {
         return NextResponse.json({ error: `El usuario ${r.rated_id} no es participante del partido` }, { status: 400 });
       }
-      for (const field of ['fair_play', 'punctuality', 'skill_level'] as const) {
+      for (const field of ['fair_play', 'punctuality', 'companerismo'] as const) {
         const v = r[field];
         if (!Number.isInteger(v) || v < 1 || v > 5) {
           return NextResponse.json({ error: `${field} debe ser un entero entre 1 y 5` }, { status: 400 });
@@ -72,12 +72,12 @@ export async function POST(request: Request, { params }: Params) {
     // Insertar valoraciones (skipDuplicates respeta la restricción única)
     await prisma.player_ratings.createMany({
       data: ratings.map((r) => ({
-        match_id:    matchId,
-        rater_id:    userId,
-        rated_id:    r.rated_id,
-        fair_play:   r.fair_play,
-        punctuality: r.punctuality,
-        skill_level: r.skill_level,
+        match_id:     matchId,
+        rater_id:     userId,
+        rated_id:     r.rated_id,
+        fair_play:    r.fair_play,
+        punctuality:  r.punctuality,
+        companerismo: r.companerismo,
       })),
       skipDuplicates: true,
     });

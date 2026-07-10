@@ -17,7 +17,7 @@ export async function GET(_request: Request, { params }: Params) {
 
     const agg = await prisma.player_ratings.aggregate({
       where: { rated_id: user.id },
-      _avg:  { fair_play: true, punctuality: true, skill_level: true },
+      _avg:  { fair_play: true, punctuality: true, companerismo: true },
       _count: { id: true },
     });
 
@@ -25,10 +25,10 @@ export async function GET(_request: Request, { params }: Params) {
 
     return NextResponse.json({
       ratings: {
-        avg_fair_play:   round1(agg._avg.fair_play),
-        avg_punctuality: round1(agg._avg.punctuality),
-        avg_skill_level: round1(agg._avg.skill_level),
-        total:           agg._count.id,
+        avg_fair_play:    round1(agg._avg.fair_play),
+        avg_punctuality:  round1(agg._avg.punctuality),
+        avg_companerismo: round1(agg._avg.companerismo),
+        total:            agg._count.id,
       },
     });
   } catch (error) {

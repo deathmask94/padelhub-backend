@@ -172,9 +172,9 @@ model player_ratings {
   match_id    String   @db.Uuid
   rater_id    String   @db.Uuid
   rated_id    String   @db.Uuid
-  fair_play   Int
-  punctuality Int
-  skill_level Int
+  fair_play    Int
+  punctuality  Int
+  companerismo Int
   created_at  DateTime @default(now()) @db.Timestamp(6)
   matches     matches  @relation(fields: [match_id], references: [id], onDelete: Cascade)
   rater       users    @relation("ratings_given",    fields: [rater_id], references: [id], onDelete: Cascade)

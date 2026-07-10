@@ -37,8 +37,8 @@ const FINISHED_MATCH = {
 };
 
 const validRatings = [
-  { rated_id: "player-a-uuid", fair_play: 5, punctuality: 4, skill_level: 3 },
-  { rated_id: "player-b-uuid", fair_play: 4, punctuality: 5, skill_level: 4 },
+  { rated_id: "player-a-uuid", fair_play: 5, punctuality: 4, companerismo: 3 },
+  { rated_id: "player-b-uuid", fair_play: 4, punctuality: 5, companerismo: 4 },
 ];
 
 function makeRateRequest(body: object) {
@@ -83,7 +83,7 @@ describe("⭐ PRUEBAS UNITARIAS - VALORACIONES (POST /matches/[id]/rate)", () =>
       ...FINISHED_MATCH, organizer_id: "mock-rater-uuid",
     });
     const ctx = { params: Promise.resolve({ id: "match-uuid" }) };
-    const selfRating = [{ rated_id: "mock-rater-uuid", fair_play: 5, punctuality: 5, skill_level: 5 }];
+    const selfRating = [{ rated_id: "mock-rater-uuid", fair_play: 5, punctuality: 5, companerismo: 5 }];
     const res = await rateHandler(makeRateRequest({ ratings: selfRating }), ctx as any);
     expect(res.status).toBe(400);
   });
@@ -91,7 +91,7 @@ describe("⭐ PRUEBAS UNITARIAS - VALORACIONES (POST /matches/[id]/rate)", () =>
   it("Debería retornar 400 si un valor de escala está fuera de rango (1-5)", async () => {
     (prisma.matches.findUnique as jest.Mock).mockResolvedValue(FINISHED_MATCH);
     const ctx = { params: Promise.resolve({ id: "match-uuid" }) };
-    const badRating = [{ rated_id: "player-a-uuid", fair_play: 6, punctuality: 3, skill_level: 3 }];
+    const badRating = [{ rated_id: "player-a-uuid", fair_play: 6, punctuality: 3, companerismo: 3 }];
     const res = await rateHandler(makeRateRequest({ ratings: badRating }), ctx as any);
     expect(res.status).toBe(400);
   });
@@ -133,7 +133,7 @@ describe("📊 PRUEBAS UNITARIAS - REPUTACIÓN (GET /users/[rut]/ratings)", () =
   it("Debería retornar 200 con promedios correctamente redondeados", async () => {
     (prisma.users.findFirst as jest.Mock).mockResolvedValue({ id: "user-uuid" });
     (prisma.player_ratings.aggregate as jest.Mock).mockResolvedValue({
-      _avg:   { fair_play: 4.333, punctuality: 3.666, skill_level: 4.0 },
+      _avg:   { fair_play: 4.333, punctuality: 3.666, companerismo: 4.0 },
       _count: { id: 3 },
     });
 
@@ -146,13 +146,13 @@ describe("📊 PRUEBAS UNITARIAS - REPUTACIÓN (GET /users/[rut]/ratings)", () =
     expect(data.ratings.total).toBe(3);
     expect(data.ratings.avg_fair_play).toBe(4.3);
     expect(data.ratings.avg_punctuality).toBe(3.7);
-    expect(data.ratings.avg_skill_level).toBe(4.0);
+    expect(data.ratings.avg_companerismo).toBe(4.0);
   });
 
   it("Debería retornar ceros/null si el usuario no tiene valoraciones", async () => {
     (prisma.users.findFirst as jest.Mock).mockResolvedValue({ id: "user-uuid" });
     (prisma.player_ratings.aggregate as jest.Mock).mockResolvedValue({
-      _avg:   { fair_play: null, punctuality: null, skill_level: null },
+      _avg:   { fair_play: null, punctuality: null, companerismo: null },
       _count: { id: 0 },
     });
 
