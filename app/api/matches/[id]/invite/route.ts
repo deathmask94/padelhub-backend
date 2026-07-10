@@ -46,6 +46,20 @@ export async function POST(request: Request, context: Params) {
     const alreadyIn = match.match_players.some((p) => p.user_id === invitedUserId);
     if (alreadyIn) return NextResponse.json({ error: 'Este jugador ya está en el partido' }, { status: 400 });
 
+    // Se busca aca (no mas abajo, solo para el email) para poder validar el
+    // genero antes de invitar: la restriccion de "quien puede unirse" debe
+    // aplicar igual si entran solos o si el organizador los invita a mano,
+    // si no el filtro de genero de los cupos abiertos queda sin sentido.
+    const invited = await prisma.users.findUnique({
+      where:  { id: invitedUserId },
+      select: { name: true, email: true, gender: true },
+    });
+
+    if (match.gender_preference && invited?.gender !== match.gender_preference) {
+      const label = match.gender_preference === 'Masculino' ? 'hombres' : 'mujeres';
+      return NextResponse.json({ error: `Este partido es solo para ${label}` }, { status: 403 });
+    }
+
     const maxPlayers = MAX_PLAYERS[match.format] ?? 4;
     if (match.match_players.length >= maxPlayers - 1) {
       return NextResponse.json({ error: 'El partido ya está completo' }, { status: 400 });
@@ -75,11 +89,6 @@ export async function POST(request: Request, context: Params) {
     });
 
     // Notificación por email (best-effort)
-    const invited = await prisma.users.findUnique({
-      where:  { id: invitedUserId },
-      select: { name: true, email: true },
-    });
-
     if (invited?.email) {
       const dateStr   = formatDate(new Date(match.match_date));
       const timeStr   = formatTime(new Date(match.match_time));
