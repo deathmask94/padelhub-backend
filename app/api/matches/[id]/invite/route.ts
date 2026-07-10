@@ -59,11 +59,17 @@ export async function POST(request: Request, context: Params) {
       }
     }
 
-    const player = await prisma.match_players.create({
-      data: {
+    // upsert (no create): si esta persona ya estuvo en el partido y lo
+    // abandono (status 'removed'), la fila (match_id, user_id) sigue
+    // existiendo por la restriccion unica -- create() chocaria con ella.
+    const assignedTeam = team ?? (match.match_players.length % 2 === 0 ? 'team_a' : 'team_b');
+    const player = await prisma.match_players.upsert({
+      where:  { match_id_user_id: { match_id: matchId, user_id: invitedUserId } },
+      update: { status: 'pending', team: assignedTeam, joined_at: new Date() },
+      create: {
         match_id: matchId,
         user_id:  invitedUserId,
-        team:     team ?? (match.match_players.length % 2 === 0 ? 'team_a' : 'team_b'),
+        team:     assignedTeam,
         status:   'pending',
       },
     });

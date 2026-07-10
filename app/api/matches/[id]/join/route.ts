@@ -43,7 +43,12 @@ export async function POST(request: Request, context: Params) {
       }
     }
 
-    const alreadyJoined = match.match_players.some((p) => p.user_id === userId);
+    // Solo cuenta como "ya inscrito" si tiene una fila activa: si abandono el
+    // partido antes (status 'removed') o rechazo una invitacion ('rejected'),
+    // debe poder volver a unirse.
+    const alreadyJoined = match.match_players.some(
+      (p) => p.user_id === userId && p.status !== 'rejected' && p.status !== 'removed'
+    );
     if (alreadyJoined) {
       return NextResponse.json({ error: 'Ya estás inscrito en este partido' }, { status: 400 });
     }
@@ -57,8 +62,14 @@ export async function POST(request: Request, context: Params) {
       return NextResponse.json({ error: 'El partido está completo' }, { status: 400 });
     }
 
-    const player = await prisma.match_players.create({
-      data: {
+    // upsert (no create): ya existe una fila (match_id, user_id) unica si
+    // el jugador abandono o rechazo una invitacion antes; hay que
+    // reactivarla en vez de intentar insertar una nueva y chocar con esa
+    // restriccion unica.
+    const player = await prisma.match_players.upsert({
+      where:  { match_id_user_id: { match_id: matchId, user_id: userId } },
+      update: { status: 'confirmed', team: activePlayers % 2 === 0 ? 'team_a' : 'team_b', joined_at: new Date() },
+      create: {
         match_id: matchId,
         user_id:  userId,
         team:     activePlayers % 2 === 0 ? 'team_a' : 'team_b',
