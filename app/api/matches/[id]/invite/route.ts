@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { verifyToken } from '@/lib/jwt';
 import { Resend } from 'resend';
 import { notify } from '@/lib/notify';
+import { pickAutoTeam } from '@/lib/teamAssignment';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -33,8 +34,11 @@ export async function POST(request: Request, context: Params) {
     const match = await prisma.matches.findUnique({
       where:   { id: matchId },
       include: {
-        match_players: { where: { status: { not: 'removed' } } },
-        users:         { select: { name: true } },
+        match_players: {
+          where:   { status: { not: 'removed' } },
+          include: { users: { select: { gender: true } } },
+        },
+        users: { select: { name: true } },
       },
     });
 
@@ -42,11 +46,6 @@ export async function POST(request: Request, context: Params) {
     if (match.organizer_id !== userId) return NextResponse.json({ error: 'Solo el organizador puede invitar' }, { status: 403 });
     if (match.status !== 'open')       return NextResponse.json({ error: 'El partido no está abierto' }, { status: 400 });
     if (invitedUserId === userId)      return NextResponse.json({ error: 'No puedes invitarte a ti mismo' }, { status: 400 });
-    // En dobles el equipo es obligatorio (no "automatico"): asi el
-    // organizador siempre sabe/decide como quedan armados los equipos.
-    if (match.format === 'doubles' && !team) {
-      return NextResponse.json({ error: 'Debes elegir a qué equipo invitas al jugador' }, { status: 400 });
-    }
 
     const alreadyIn = match.match_players.some((p) => p.user_id === invitedUserId);
     if (alreadyIn) return NextResponse.json({ error: 'Este jugador ya está en el partido' }, { status: 400 });
@@ -81,7 +80,13 @@ export async function POST(request: Request, context: Params) {
     // upsert (no create): si esta persona ya estuvo en el partido y lo
     // abandono (status 'removed'), la fila (match_id, user_id) sigue
     // existiendo por la restriccion unica -- create() chocaria con ella.
-    const assignedTeam = team ?? (match.match_players.length % 2 === 0 ? 'team_a' : 'team_b');
+    // Sin equipo explicito ("Automatico"), se arma balanceado: por cupo si
+    // todos son del mismo sexo, o emparejando 1 hombre + 1 mujer por
+    // equipo si el partido termina siendo mixto.
+    const assignedTeam = team ?? pickAutoTeam(
+      match.match_players.map((p) => ({ team: p.team, gender: p.users.gender })),
+      invited?.gender,
+    );
     const player = await prisma.match_players.upsert({
       where:  { match_id_user_id: { match_id: matchId, user_id: invitedUserId } },
       update: { status: 'pending', team: assignedTeam, joined_at: new Date() },

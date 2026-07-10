@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifyToken } from '@/lib/jwt';
 import { notify } from '@/lib/notify';
+import { pickAutoTeam } from '@/lib/teamAssignment';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -19,7 +20,7 @@ export async function POST(request: Request, context: Params) {
 
     const match = await prisma.matches.findUnique({
       where: { id: matchId },
-      include: { match_players: true },
+      include: { match_players: { include: { users: { select: { gender: true } } } } },
     });
 
     if (!match) {
@@ -63,13 +64,13 @@ export async function POST(request: Request, context: Params) {
       return NextResponse.json({ error: 'El partido está completo' }, { status: 400 });
     }
 
-    // Se asigna al equipo con menos jugadores (no por paridad del total):
-    // si el organizador ya invito explicitamente a alguien a un equipo
-    // especifico, alternar por conteo total podia desbalancear y meter un
-    // 3er jugador al mismo equipo, que tiene cupo maximo de 2.
-    const teamACount = activeMatchPlayers.filter((p) => p.team === 'team_a').length;
-    const teamBCount = activeMatchPlayers.filter((p) => p.team === 'team_b').length;
-    const assignedTeam = teamACount <= teamBCount ? 'team_a' : 'team_b';
+    // Se arma balanceado por cupo si todos son del mismo sexo, o
+    // emparejando 1 hombre + 1 mujer por equipo si el partido termina
+    // siendo mixto (mismo criterio que /invite en modo "Automatico").
+    const assignedTeam = pickAutoTeam(
+      activeMatchPlayers.map((p) => ({ team: p.team, gender: p.users.gender })),
+      me?.gender,
+    );
 
     // upsert (no create): ya existe una fila (match_id, user_id) unica si
     // el jugador abandono o rechazo una invitacion antes; hay que
