@@ -94,8 +94,9 @@ export async function GET(request: Request) {
       dateWhere.lt = t;
     }
 
-    // Un partido que el usuario ya rechazo no debe seguir apareciendo en
-    // Disponibles -- ya tomo su decision sobre esa invitacion.
+    // Un partido que el usuario ya rechazo o abandono no debe seguir
+    // apareciendo en Disponibles -- ya tomo su decision al respecto (otros
+    // usuarios si lo siguen viendo/pudiendo unirse mientras tenga cupos).
     let userId: string | null = null;
     const authHeader = request.headers.get("authorization");
     const token = authHeader?.replace("Bearer ", "");
@@ -109,7 +110,7 @@ export async function GET(request: Request) {
         match_date: dateWhere,
         ...(format ? { format: format as never } : {}),
         ...(zone   ? { users: { zone } }          : {}),
-        ...(userId ? { match_players: { none: { user_id: userId, status: "rejected" } } } : {}),
+        ...(userId ? { match_players: { none: { user_id: userId, status: { in: ["rejected", "removed"] } } } } : {}),
       },
       include: {
         users: { select: { name: true, level: true, mmr: true, photo_url: true, zone: true } },
