@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { Resend } from 'resend';
 import { sendPush } from '@/lib/push';
+import { matchDateTimeAsUTCms } from '@/lib/matchTime';
 
 const resend  = new Resend(process.env.RESEND_API_KEY);
 const APP_URL = process.env.FRONTEND_URL ?? 'http://localhost:5173';
@@ -38,23 +39,37 @@ export async function GET(request: Request) {
 
   let sent = 0;
 
-  for (const { type, ms } of targets) {
-    const from = new Date(now + ms - WINDOW);
-    const to   = new Date(now + ms + WINDOW);
+  // match_time es columna TIME (sin fecha): no se puede filtrar "24h/1h
+  // desde ahora" a nivel de BD comparandola sola, porque Prisma/Postgres
+  // solo compara la hora-del-dia e ignora la fecha por completo (un
+  // partido en 3 semanas cuya hora coincidiera con la ventana de hoy
+  // matchearia igual). Se trae un rango amplio por match_date (cubre
+  // sobra para las ventanas de 24h y 1h) y se filtra la hora exacta en
+  // JS con matchDateTimeAsUTCms, que si combina fecha + hora reales.
+  const today       = new Date(); today.setUTCHours(0, 0, 0, 0);
+  const dateRangeTo = new Date(today.getTime() + 3 * 24 * 60 * 60 * 1000);
 
-    // Partidos que empiezan en esa ventana de tiempo, en estado jugable
-    const matches = await prisma.matches.findMany({
-      where: {
-        status:     { in: ['open', 'confirmed'] },
-        match_time: { gte: from, lte: to },
+  const candidateMatches = await prisma.matches.findMany({
+    where: {
+      status:     { in: ['open', 'confirmed'] },
+      match_date: { gte: today, lte: dateRangeTo },
+    },
+    include: {
+      users:         { select: { id: true, name: true, email: true, reminder_enabled: true } },
+      match_players: {
+        where:   { status: 'confirmed' },
+        include: { users: { select: { id: true, name: true, email: true, reminder_enabled: true } } },
       },
-      include: {
-        users:         { select: { id: true, name: true, email: true, reminder_enabled: true } },
-        match_players: {
-          where:   { status: 'confirmed' },
-          include: { users: { select: { id: true, name: true, email: true, reminder_enabled: true } } },
-        },
-      },
+    },
+  });
+
+  for (const { type, ms } of targets) {
+    const from = now + ms - WINDOW;
+    const to   = now + ms + WINDOW;
+
+    const matches = candidateMatches.filter((m) => {
+      const startsAt = matchDateTimeAsUTCms(m.match_date, m.match_time);
+      return startsAt >= from && startsAt <= to;
     });
 
     for (const match of matches) {

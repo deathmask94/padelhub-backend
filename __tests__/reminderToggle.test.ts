@@ -99,13 +99,19 @@ describe("🔕 Toggle 'Recordatorios de partido': solo afecta push, nunca email"
   it("Recordatorio 24h/1h: el email se manda aunque reminder_enabled=false, el push no", async () => {
     const playerOff = { id: "player-uuid", name: "Jugador Con Toggle Off", email: "off@test.com", reminder_enabled: false };
 
-    (prisma.matches.findMany as jest.Mock)
-      .mockResolvedValueOnce([{
-        id: "match-uuid", club: "Club X", format: "singles",
-        match_date: new Date(), match_time: new Date(),
-        users: playerOff, match_players: [],
-      }])
-      .mockResolvedValueOnce([]); // segunda ventana (1h): sin partidos
+    // match_date/match_time construidos para caer justo en el objetivo de
+    // 24h desde ahora (matchDateTimeAsUTCms combina fecha real + hora del
+    // dia; ver lib/matchTime.ts). El filtro de 1h no debe capturar este
+    // mismo partido -- por eso solo se espera 1 envio, no 2.
+    const target24h = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    const matchDate = new Date(Date.UTC(target24h.getUTCFullYear(), target24h.getUTCMonth(), target24h.getUTCDate()));
+    const matchTime = new Date(Date.UTC(1970, 0, 1, target24h.getUTCHours(), target24h.getUTCMinutes(), target24h.getUTCSeconds()));
+
+    (prisma.matches.findMany as jest.Mock).mockResolvedValue([{
+      id: "match-uuid", club: "Club X", format: "singles",
+      match_date: matchDate, match_time: matchTime,
+      users: playerOff, match_players: [],
+    }]);
 
     const req = new Request("http://localhost:3000/api/reminders/send", {
       headers: { Authorization: `Bearer ${process.env.CRON_SECRET}` },
@@ -114,7 +120,7 @@ describe("🔕 Toggle 'Recordatorios de partido': solo afecta push, nunca email"
     const data = await res.json();
 
     expect(res.status).toBe(200);
-    expect(data.sent).toBe(1); // el email SI se conto como enviado
+    expect(data.sent).toBe(1); // el email SI se conto como enviado (solo por la ventana de 24h)
     expect(sendPush).not.toHaveBeenCalled(); // pero el push, no
   });
 });

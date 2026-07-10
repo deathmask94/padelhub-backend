@@ -1,16 +1,16 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifyToken } from '@/lib/jwt';
+import { hasMatchStarted, matchDateTimeAsUTCms } from '@/lib/matchTime';
 
 type Params = { params: Promise<{ id: string }> };
 
 const MAX_PLAYERS: Record<string, number> = { doubles: 4, singles: 2 };
 const MATCH_DURATION_MS = 2 * 60 * 60 * 1000; // 2 horas
 
-async function autoTransitionStatus(matchId: string, currentStatus: string, matchTime: Date) {
+async function autoTransitionStatus(matchId: string, currentStatus: string, matchDate: Date, matchTime: Date) {
   if (currentStatus !== 'confirmed') return;
-  const startTime = new Date(matchTime).getTime();
-  if (Date.now() >= startTime) {
+  if (hasMatchStarted(matchDate, matchTime)) {
     await prisma.matches.update({
       where: { id: matchId },
       data:  { status: 'in_progress', updated_at: new Date() },
@@ -43,11 +43,11 @@ export async function GET(request: Request, context: Params) {
 
     if (!match) return NextResponse.json({ error: 'Partido no encontrado' }, { status: 404 });
 
-    await autoTransitionStatus(matchId, match.status, match.match_time);
-    const currentStatus = match.status === 'confirmed' && Date.now() >= new Date(match.match_time).getTime()
+    await autoTransitionStatus(matchId, match.status, match.match_date, match.match_time);
+    const currentStatus = match.status === 'confirmed' && hasMatchStarted(match.match_date, match.match_time)
       ? 'in_progress' : match.status;
 
-    const endsAt = new Date(new Date(match.match_time).getTime() + MATCH_DURATION_MS);
+    const endsAt = new Date(matchDateTimeAsUTCms(match.match_date, match.match_time) + MATCH_DURATION_MS);
 
     const maxPlayers  = MAX_PLAYERS[match.format] ?? 4;
     const isOrganizer = match.organizer_id === userId;
