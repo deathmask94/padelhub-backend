@@ -54,13 +54,22 @@ export async function POST(request: Request, context: Params) {
     }
 
     const maxPlayers = MAX_PLAYERS[match.format] ?? 4;
-    const activePlayers = match.match_players.filter(
+    const activeMatchPlayers = match.match_players.filter(
       (p) => p.status !== 'rejected' && p.status !== 'removed'
-    ).length;
+    );
+    const activePlayers = activeMatchPlayers.length;
 
     if (activePlayers >= maxPlayers - 1) {
       return NextResponse.json({ error: 'El partido está completo' }, { status: 400 });
     }
+
+    // Se asigna al equipo con menos jugadores (no por paridad del total):
+    // si el organizador ya invito explicitamente a alguien a un equipo
+    // especifico, alternar por conteo total podia desbalancear y meter un
+    // 3er jugador al mismo equipo, que tiene cupo maximo de 2.
+    const teamACount = activeMatchPlayers.filter((p) => p.team === 'team_a').length;
+    const teamBCount = activeMatchPlayers.filter((p) => p.team === 'team_b').length;
+    const assignedTeam = teamACount <= teamBCount ? 'team_a' : 'team_b';
 
     // upsert (no create): ya existe una fila (match_id, user_id) unica si
     // el jugador abandono o rechazo una invitacion antes; hay que
@@ -68,11 +77,11 @@ export async function POST(request: Request, context: Params) {
     // restriccion unica.
     const player = await prisma.match_players.upsert({
       where:  { match_id_user_id: { match_id: matchId, user_id: userId } },
-      update: { status: 'confirmed', team: activePlayers % 2 === 0 ? 'team_a' : 'team_b', joined_at: new Date() },
+      update: { status: 'confirmed', team: assignedTeam, joined_at: new Date() },
       create: {
         match_id: matchId,
         user_id:  userId,
-        team:     activePlayers % 2 === 0 ? 'team_a' : 'team_b',
+        team:     assignedTeam,
         status:   'confirmed',
       },
     });

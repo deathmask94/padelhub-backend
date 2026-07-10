@@ -87,7 +87,7 @@ describe("🔁 Reunirse/re-invitar despues de abandonar un partido", () => {
     const req = new Request("http://localhost:3000/api/matches/match-uuid/invite", {
       method: "POST",
       headers: { Authorization: "Bearer fake-token" },
-      body: JSON.stringify({ userId: "invitee-uuid" }),
+      body: JSON.stringify({ userId: "invitee-uuid", team: "team_a" }),
     });
     const res = await inviteHandler(req, { params: Promise.resolve({ id: "match-uuid" }) });
 

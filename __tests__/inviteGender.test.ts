@@ -30,7 +30,7 @@ function inviteRequest(userId: string) {
   return new Request("http://localhost:3000/api/matches/match-uuid/invite", {
     method: "POST",
     headers: { Authorization: "Bearer fake-token" },
-    body: JSON.stringify({ userId }),
+    body: JSON.stringify({ userId, team: "team_a" }),
   });
 }
 

@@ -42,6 +42,11 @@ export async function POST(request: Request, context: Params) {
     if (match.organizer_id !== userId) return NextResponse.json({ error: 'Solo el organizador puede invitar' }, { status: 403 });
     if (match.status !== 'open')       return NextResponse.json({ error: 'El partido no está abierto' }, { status: 400 });
     if (invitedUserId === userId)      return NextResponse.json({ error: 'No puedes invitarte a ti mismo' }, { status: 400 });
+    // En dobles el equipo es obligatorio (no "automatico"): asi el
+    // organizador siempre sabe/decide como quedan armados los equipos.
+    if (match.format === 'doubles' && !team) {
+      return NextResponse.json({ error: 'Debes elegir a qué equipo invitas al jugador' }, { status: 400 });
+    }
 
     const alreadyIn = match.match_players.some((p) => p.user_id === invitedUserId);
     if (alreadyIn) return NextResponse.json({ error: 'Este jugador ya está en el partido' }, { status: 400 });
