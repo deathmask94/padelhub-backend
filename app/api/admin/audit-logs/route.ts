@@ -11,6 +11,7 @@ const ACTION_LABEL: Record<string, string> = {
   BACKUP_DOWNLOADED:      'Descarga de respaldo',
   BACKUP_RESTORED:        'Restauración de respaldo',
   MMR_ADJUST:             'Ajuste manual de MMR',
+  MATCH_STATUS_FORCED:    'Estado de partido forzado',
 };
 
 export async function GET(request: Request) {
