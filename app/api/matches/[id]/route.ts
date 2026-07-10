@@ -38,6 +38,12 @@ export async function GET(request: Request, context: Params) {
             users: { select: { id: true, name: true, photo_url: true, level: true, mmr: true } },
           },
         },
+        match_results: {
+          select: {
+            registered_by: true, confirmed_by: true,
+            score_team_a: true, score_team_b: true, winner: true,
+          },
+        },
       },
     });
 

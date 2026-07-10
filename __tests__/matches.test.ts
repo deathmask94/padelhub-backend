@@ -1,7 +1,8 @@
-import { POST as createMatchHandler  } from "../app/api/matches/route";
-import { POST as cancelMatchHandler  } from "../app/api/matches/[id]/cancel/route";
-import { POST as resultMatchHandler  } from "../app/api/matches/[id]/result/route";
-import { POST as inviteMatchHandler  } from "../app/api/matches/[id]/invite/route";
+import { POST as createMatchHandler   } from "../app/api/matches/route";
+import { POST as cancelMatchHandler   } from "../app/api/matches/[id]/cancel/route";
+import { POST as resultMatchHandler   } from "../app/api/matches/[id]/result/route";
+import { POST as confirmResultHandler } from "../app/api/matches/[id]/result/confirm/route";
+import { POST as inviteMatchHandler   } from "../app/api/matches/[id]/invite/route";
 import { prisma } from "@/lib/prisma";
 
 jest.mock("@/lib/jwt", () => ({
@@ -39,6 +40,7 @@ jest.mock("@/lib/prisma", () => ({
     },
     match_results: {
       create: jest.fn(),
+      update: jest.fn(),
     },
     mmr_history: {
       create: jest.fn(),
@@ -230,9 +232,9 @@ describe("🏆 PRUEBAS UNITARIAS - REGISTRAR RESULTADO (POST /matches/[id]/resul
     expect(res.status).toBe(400);
   });
 
-  it("Debería retornar 200 y aplicar cambios de MMR correctamente si el partido es competitivo", async () => {
-    (prisma.matches.findUnique as jest.Mock).mockResolvedValue(CONFIRMED_MATCH);
-    (prisma.$transaction       as jest.Mock).mockResolvedValue([{}, {}, {}, {}]);
+  it("Debería retornar 200 y crear el resultado como pendiente de confirmación (sin tocar MMR todavía)", async () => {
+    (prisma.matches.findUnique  as jest.Mock).mockResolvedValue(CONFIRMED_MATCH);
+    (prisma.match_results.create as jest.Mock).mockResolvedValue({});
 
     const req = new Request("http://localhost:3000/api/matches/match-uuid/result", {
       method: "POST", headers: { Authorization: "Bearer token" },
@@ -240,23 +242,125 @@ describe("🏆 PRUEBAS UNITARIAS - REGISTRAR RESULTADO (POST /matches/[id]/resul
     });
     const ctx  = { params: Promise.resolve({ id: "match-uuid" }) };
     const res  = await resultMatchHandler(req, ctx as any);
+
+    expect(res.status).toBe(200);
+    expect(prisma.match_results.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({
+        match_id: "match-uuid", registered_by: "organizer-uuid",
+        organizer_team: "team_a", winner: "team_a",
+        score_team_a: "6-3", score_team_b: "3-6",
+      }) })
+    );
+    // No se toca MMR ni se marca el partido finalizado en este paso --
+    // eso ocurre recien cuando el rival confirma.
+    expect(prisma.matches.update).not.toHaveBeenCalled();
+    expect(prisma.users.update).not.toHaveBeenCalled();
+  });
+});
+
+describe("✅ PRUEBAS UNITARIAS - CONFIRMAR RESULTADO (POST /matches/[id]/result/confirm)", () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  const MATCH_WITH_PENDING_RESULT = {
+    id: "match-uuid", status: "confirmed", club: "Club Test",
+    organizer_id: "organizer-uuid", is_ranked: true,
+    users: { id: "organizer-uuid", mmr: 1000 },
+    match_players: [
+      { user_id: "rival-uuid", status: "confirmed", team: "team_b", users: { id: "rival-uuid", mmr: 1000 } },
+    ],
+    match_results: {
+      registered_by: "organizer-uuid", organizer_team: "team_a",
+      winner: "team_a", score_team_a: "6-3", score_team_b: "3-6",
+      confirmed_by: null,
+    },
+  };
+
+  it("Debería retornar 401 si no se envía token", async () => {
+    const req = new Request("http://localhost:3000/api/matches/match-uuid/result/confirm", { method: "POST" });
+    const ctx = { params: Promise.resolve({ id: "match-uuid" }) };
+    const res = await confirmResultHandler(req, ctx as any);
+    expect(res.status).toBe(401);
+  });
+
+  it("Debería retornar 400 si todavía no hay resultado registrado", async () => {
+    (prisma.matches.findUnique as jest.Mock).mockResolvedValue({ ...MATCH_WITH_PENDING_RESULT, match_results: null });
+    const req = new Request("http://localhost:3000/api/matches/match-uuid/result/confirm", {
+      method: "POST", headers: { Authorization: "Bearer token" },
+    });
+    const ctx = { params: Promise.resolve({ id: "match-uuid" }) };
+    const res = await confirmResultHandler(req, ctx as any);
+    expect(res.status).toBe(400);
+  });
+
+  it("Debería retornar 400 si el resultado ya fue confirmado", async () => {
+    (prisma.matches.findUnique as jest.Mock).mockResolvedValue({
+      ...MATCH_WITH_PENDING_RESULT,
+      match_results: { ...MATCH_WITH_PENDING_RESULT.match_results, confirmed_by: "rival-uuid" },
+    });
+    const { verifyToken } = require("@/lib/jwt");
+    verifyToken.mockResolvedValueOnce({ userId: "rival-uuid", role: "player" });
+
+    const req = new Request("http://localhost:3000/api/matches/match-uuid/result/confirm", {
+      method: "POST", headers: { Authorization: "Bearer token" },
+    });
+    const ctx = { params: Promise.resolve({ id: "match-uuid" }) };
+    const res = await confirmResultHandler(req, ctx as any);
+    expect(res.status).toBe(400);
+  });
+
+  it("Debería retornar 403 si quien confirma es quien registró el resultado", async () => {
+    (prisma.matches.findUnique as jest.Mock).mockResolvedValue(MATCH_WITH_PENDING_RESULT);
+
+    const req = new Request("http://localhost:3000/api/matches/match-uuid/result/confirm", {
+      method: "POST", headers: { Authorization: "Bearer token" }, // userId mockeado = organizer-uuid = registered_by
+    });
+    const ctx = { params: Promise.resolve({ id: "match-uuid" }) };
+    const res = await confirmResultHandler(req, ctx as any);
+    expect(res.status).toBe(403);
+  });
+
+  it("Debería retornar 403 si quien confirma no es jugador de este partido", async () => {
+    (prisma.matches.findUnique as jest.Mock).mockResolvedValue(MATCH_WITH_PENDING_RESULT);
+    const { verifyToken } = require("@/lib/jwt");
+    verifyToken.mockResolvedValueOnce({ userId: "desconocido-uuid", role: "player" });
+
+    const req = new Request("http://localhost:3000/api/matches/match-uuid/result/confirm", {
+      method: "POST", headers: { Authorization: "Bearer token" },
+    });
+    const ctx = { params: Promise.resolve({ id: "match-uuid" }) };
+    const res = await confirmResultHandler(req, ctx as any);
+    expect(res.status).toBe(403);
+  });
+
+  it("Debería confirmar y aplicar MMR si el partido es competitivo", async () => {
+    (prisma.matches.findUnique as jest.Mock).mockResolvedValue(MATCH_WITH_PENDING_RESULT);
+    (prisma.$transaction       as jest.Mock).mockResolvedValue([{}, {}, {}, {}, {}, {}]);
+    const { verifyToken } = require("@/lib/jwt");
+    verifyToken.mockResolvedValueOnce({ userId: "rival-uuid", role: "player" });
+
+    const req = new Request("http://localhost:3000/api/matches/match-uuid/result/confirm", {
+      method: "POST", headers: { Authorization: "Bearer token" },
+    });
+    const ctx  = { params: Promise.resolve({ id: "match-uuid" }) };
+    const res  = await confirmResultHandler(req, ctx as any);
     const data = await res.json();
 
     expect(res.status).toBe(200);
     expect(data.changes).toHaveLength(2);
   });
 
-  it("No debería tocar el MMR si el partido es casual/exhibición", async () => {
+  it("No debería tocar el MMR al confirmar si el partido es casual/exhibición", async () => {
     const { calculateELO } = require("@/lib/elo");
-    (prisma.matches.findUnique as jest.Mock).mockResolvedValue({ ...CONFIRMED_MATCH, is_ranked: false });
+    (prisma.matches.findUnique as jest.Mock).mockResolvedValue({ ...MATCH_WITH_PENDING_RESULT, is_ranked: false });
     (prisma.$transaction       as jest.Mock).mockResolvedValue([{}, {}]);
+    const { verifyToken } = require("@/lib/jwt");
+    verifyToken.mockResolvedValueOnce({ userId: "rival-uuid", role: "player" });
 
-    const req = new Request("http://localhost:3000/api/matches/match-uuid/result", {
+    const req = new Request("http://localhost:3000/api/matches/match-uuid/result/confirm", {
       method: "POST", headers: { Authorization: "Bearer token" },
-      body:   JSON.stringify({ winner: "team_a", organizer_team: "team_a", score_team_a: "6-3", score_team_b: "3-6" }),
     });
     const ctx  = { params: Promise.resolve({ id: "match-uuid" }) };
-    const res  = await resultMatchHandler(req, ctx as any);
+    const res  = await confirmResultHandler(req, ctx as any);
     const data = await res.json();
 
     expect(res.status).toBe(200);

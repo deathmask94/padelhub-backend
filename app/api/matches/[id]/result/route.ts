@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifyToken } from '@/lib/jwt';
-import { calculateELO } from '@/lib/elo';
-import { mmrToLevel } from '@/lib/mmrToLevel';
 import { notify } from '@/lib/notify';
 
 type Params = { params: Promise<{ id: string }> };
@@ -71,54 +69,30 @@ export async function POST(request: Request, context: Params) {
       return NextResponse.json({ error: 'Ambos equipos deben tener al menos un jugador' }, { status: 400 });
     }
 
-    // Los partidos casuales/exhibicion registran resultado pero no tocan MMR.
-    const changes = match.is_ranked ? calculateELO(teamA, teamB, winner) : [];
+    // No se aplica MMR ni se marca "finished" todavia: el resultado queda
+    // pendiente de que otro jugador confirmado lo confirme (ver
+    // /result/confirm). Esto evita que un solo jugador decida el resultado
+    // (y el MMR de todos) sin que nadie mas lo valide.
+    await prisma.match_results.create({
+      data: {
+        match_id:       matchId,
+        registered_by:  userId,
+        organizer_team,
+        score_team_a,
+        score_team_b,
+        winner,
+      },
+    });
 
-    // Persist all changes in a transaction
-    await prisma.$transaction([
-      // Update match status
-      prisma.matches.update({
-        where: { id: matchId },
-        data:  { status: 'finished', updated_at: new Date() },
-      }),
-      // Create match result
-      prisma.match_results.create({
-        data: {
-          match_id:      matchId,
-          registered_by: userId,
-          score_team_a:  score_team_a || '—',
-          score_team_b:  score_team_b || '—',
-          winner,
-        },
-      }),
-      // Update each player's MMR and recalculate category
-      ...changes.map((c) =>
-        prisma.users.update({
-          where: { id: c.id },
-          data:  { mmr: c.after, level: mmrToLevel(c.after), updated_at: new Date() },
-        })
-      ),
-      // Create MMR history entries
-      ...changes.map((c) =>
-        prisma.mmr_history.create({
-          data: {
-            user_id:   c.id,
-            match_id:  matchId,
-            mmr_before: c.before,
-            mmr_after:  c.after,
-          },
-        })
-      ),
-    ]);
-
-    const scoreStr = `${score_team_a || '—'} vs ${score_team_b || '—'}`;
+    const scoreStr = `${score_team_a} vs ${score_team_b}`;
+    const others = [...teamA, ...teamB].filter((p) => p.id !== userId);
     await Promise.all(
-      [...teamA, ...teamB].map((p) =>
-        notify(p.id, `Resultado registrado — ${match.club}`, scoreStr)
+      others.map((p) =>
+        notify(p.id, `Resultado pendiente de confirmar — ${match.club}`, `${scoreStr}. Confirma el resultado para que se registre.`)
       )
     );
 
-    return NextResponse.json({ message: 'Resultado registrado', changes });
+    return NextResponse.json({ message: 'Resultado registrado, pendiente de confirmación del rival' });
   } catch (error) {
     console.error('[MATCH RESULT ERROR]', error);
     return NextResponse.json({ error: 'Error al registrar el resultado' }, { status: 500 });

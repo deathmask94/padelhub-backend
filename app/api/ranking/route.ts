@@ -10,12 +10,15 @@ export async function GET(request: Request) {
     await verifyToken(token);
 
     const { searchParams } = new URL(request.url);
-    const zone     = searchParams.get('zone') ?? undefined;
+    const zone       = searchParams.get('zone') ?? undefined;
+    const genderParam = searchParams.get('gender');
+    const gender      = genderParam === 'Masculino' || genderParam === 'Femenino' ? genderParam : undefined;
     const page     = Math.max(1, parseInt(searchParams.get('page') ?? '1'));
     const pageSize = 10;
 
     const where: Record<string, unknown> = { is_active: true, role: 'player' };
-    if (zone) where.zone = zone;
+    if (zone)   where.zone   = zone;
+    if (gender) where.gender = gender;
 
     // $transaction (no Promise.all): la conexion pooled corre con
     // connection_limit=1, asi que dos queries concurrentes sobre la misma
