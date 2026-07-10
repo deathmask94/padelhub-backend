@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifyToken } from '@/lib/jwt';
 import { notify } from '@/lib/notify';
+import { sendPush } from '@/lib/push';
 import { Resend } from 'resend';
 
 type Params = { params: Promise<{ id: string }> };
@@ -32,8 +33,10 @@ async function notifyMatchConfirmed(matchId: string) {
   const timeStr   = formatTime(new Date(match.match_time));
   const formatStr = match.format === 'doubles' ? 'Dobles (2v2)' : 'Individual (1v1)';
 
-  const participants = [match.users, ...match.match_players.map((p) => p.users)]
-    .filter((u) => u.email && u.reminder_enabled);
+  const allParticipants = [match.users, ...match.match_players.map((p) => p.users)];
+  // El email siempre se manda; el toggle "Recordatorios de partido" del
+  // perfil solo controla si ademas llega como push (ver sendPush mas abajo).
+  const participants = allParticipants.filter((u) => u.email);
 
   await Promise.allSettled(participants.map((p) => resend.emails.send({
     from:    'onboarding@resend.dev',
@@ -66,6 +69,12 @@ async function notifyMatchConfirmed(matchId: string) {
       </div>
     `,
   })));
+
+  await Promise.allSettled(
+    allParticipants
+      .filter((u) => u.reminder_enabled)
+      .map((p) => sendPush(p.id, '¡Partido confirmado!', `${match.club} — ${dateStr} · ${timeStr}`)),
+  );
 }
 
 export async function POST(request: Request, context: Params) {

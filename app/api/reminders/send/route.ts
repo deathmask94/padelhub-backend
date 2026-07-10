@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { Resend } from 'resend';
+import { sendPush } from '@/lib/push';
 
 const resend  = new Resend(process.env.RESEND_API_KEY);
 const APP_URL = process.env.FRONTEND_URL ?? 'http://localhost:5173';
@@ -57,11 +58,13 @@ export async function GET(request: Request) {
     });
 
     for (const match of matches) {
-      // Todos los participantes: organizador + jugadores confirmados
+      // Todos los participantes: organizador + jugadores confirmados.
+      // El email de recordatorio siempre se manda; el toggle "Recordatorios
+      // de partido" del perfil solo controla si ademas llega como push.
       const participants = [
         match.users,
         ...match.match_players.map((p) => p.users),
-      ].filter((u) => u.email && u.reminder_enabled);
+      ].filter((u) => u.email);
 
       for (const participant of participants) {
         // Verificar que no se haya enviado ya este recordatorio
@@ -106,6 +109,14 @@ export async function GET(request: Request) {
             </div>
           `,
         });
+
+        if (participant.reminder_enabled) {
+          await sendPush(
+            participant.id,
+            `Partido ${label}`,
+            `${match.club} — ${dateStr} · ${timeStr}`,
+          ).catch(() => {});
+        }
 
         await prisma.match_reminders.create({
           data: { match_id: match.id, user_id: participant.id, type },
