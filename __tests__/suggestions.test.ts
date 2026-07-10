@@ -39,9 +39,9 @@ describe("🎯 PRUEBAS UNITARIAS - SUGERENCIAS DE RIVALES", () => {
     expect(res.status).toBe(404);
   });
 
-  it("Debería retornar sugerencias con compatibilidad cuando hay ≥5 rivales elegibles (≥80%) en ±150", async () => {
+  it("Debería retornar como máximo 3 rivales, aunque haya más elegibles (≥80%) en ±150", async () => {
     (prisma.users.findUnique as jest.Mock).mockResolvedValue({ mmr: 1000, is_active: true });
-    // Diffs 0..25 -> compat a rango 150 entre 83% y 100%, todos elegibles.
+    // Diffs 0..25 -> compat a rango 150 entre 83% y 100%, todos elegibles (6).
     (prisma.users.findMany  as jest.Mock).mockResolvedValue(mockRivals(6, 1000));
 
     const req = new Request("http://localhost:3000/api/users/suggestions", {
@@ -54,13 +54,13 @@ describe("🎯 PRUEBAS UNITARIAS - SUGERENCIAS DE RIVALES", () => {
     expect(data).toHaveProperty("suggestions");
     expect(data).toHaveProperty("range_used", 150);
     expect(data).toHaveProperty("user_mmr", 1000);
-    expect(data.suggestions.length).toBeGreaterThanOrEqual(5);
+    expect(data.suggestions.length).toBe(3);
     expect(data.suggestions[0]).toHaveProperty("compatibility");
   });
 
-  it("Debería expandir el rango a ±300 si ±150 da menos de 5 rivales elegibles", async () => {
+  it("Debería expandir el rango a ±300 si ±150 da menos de 3 rivales elegibles", async () => {
     (prisma.users.findUnique as jest.Mock).mockResolvedValue({ mmr: 1000, is_active: true });
-    // Primera llamada (±150): 2 rivales cercanos (elegibles pero <5 en total);
+    // Primera llamada (±150): 2 rivales cercanos (elegibles pero <3 en total);
     // segunda (±300): 5 rivales con diff <= 50 -> compat >= 80% a rango 300.
     (prisma.users.findMany as jest.Mock)
       .mockResolvedValueOnce(mockRivals(2, 1000))
@@ -74,10 +74,10 @@ describe("🎯 PRUEBAS UNITARIAS - SUGERENCIAS DE RIVALES", () => {
 
     expect(res.status).toBe(200);
     expect(data.range_used).toBe(300);
-    expect(data.suggestions.length).toBe(5);
+    expect(data.suggestions.length).toBe(3);
   });
 
-  it("Debería retornar lo que haya aunque sean <5 rivales tras agotar todos los rangos", async () => {
+  it("Debería retornar lo que haya aunque sean <3 rivales tras agotar todos los rangos", async () => {
     (prisma.users.findUnique as jest.Mock).mockResolvedValue({ mmr: 1000, is_active: true });
     // Diff 90/95: compat < 80% a rango 150 y 300, pero >= 80% a rango 500.
     (prisma.users.findMany  as jest.Mock).mockResolvedValue(mockRivals(2, 1090));
@@ -91,6 +91,22 @@ describe("🎯 PRUEBAS UNITARIAS - SUGERENCIAS DE RIVALES", () => {
     expect(res.status).toBe(200);
     expect(data.range_used).toBe(500);
     expect(data.suggestions.length).toBe(2);
+  });
+
+  it("Debería traer todo el rango elegible (no solo un subconjunto fijo tipo página)", async () => {
+    (prisma.users.findUnique as jest.Mock).mockResolvedValue({ mmr: 1000, is_active: true });
+    (prisma.users.findMany  as jest.Mock).mockResolvedValue(mockRivals(6, 1000));
+
+    const req = new Request("http://localhost:3000/api/users/suggestions", {
+      headers: { Authorization: "Bearer valid-token" },
+    });
+    await suggestionsHandler(req);
+
+    // No debe limitar la consulta a un puñado fijo ordenado por MMR: eso
+    // reduciria el pool real de elegibles antes incluso de mezclar.
+    expect(prisma.users.findMany).toHaveBeenCalledWith(
+      expect.not.objectContaining({ orderBy: expect.anything(), take: 20 })
+    );
   });
 
   it("Debería excluir rivales con menos de 80% de compatibilidad", async () => {

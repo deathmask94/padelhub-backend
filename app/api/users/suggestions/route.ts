@@ -39,12 +39,23 @@ export async function GET(request: Request) {
     // opcional como en la creacion manual de partidos casuales.
     const genderFilter = me.gender ?? undefined;
 
-    // Intentar con ±150, luego ±300, luego ±500 hasta tener al menos 5 rivales
+    // El matchmaking siempre entrega como maximo 3 rivales por busqueda (no
+    // hay "ver mas" tipo lista/paginacion): cada "Buscar rival" es una
+    // tirada nueva, al azar dentro de los elegibles.
+    const MAX_SUGGESTIONS = 3;
+
+    // Intentar con ±150, luego ±300, luego ±500 hasta tener al menos 3 rivales
     const RANGES = [150, 300, 500];
     let suggestions: { id: string; name: string; photo_url: string | null; level: string; mmr: number; zone: string; compatibility: number }[] = [];
     let range_used = 150;
 
     for (const range of RANGES) {
+      // Sin orderBy ni take chico aca: si se trajeran solo, por ejemplo, los
+      // 20 con MMR mas cercano (ordenados), el shuffle de mas abajo solo
+      // revolveria ese mismo subconjunto fijo -- con mas elegibles que eso,
+      // siempre serian los mismos candidatos "paginados" por MMR, nunca los
+      // demas. Se trae todo el rango (con un techo de seguridad) y se
+      // filtra/mezcla sobre el conjunto completo de elegibles.
       const rivals = await prisma.users.findMany({
         where: {
           is_active: true,
@@ -53,9 +64,8 @@ export async function GET(request: Request) {
           mmr:       { gte: Math.max(0, userMMR - range), lte: userMMR + range },
           ...(genderFilter ? { gender: genderFilter } : {}),
         },
-        select:  { id: true, name: true, photo_url: true, level: true, mmr: true, zone: true },
-        orderBy: { mmr: 'asc' },
-        take:    20,
+        select: { id: true, name: true, photo_url: true, level: true, mmr: true, zone: true },
+        take:   500,
       });
 
       const eligible = rivals
@@ -63,12 +73,12 @@ export async function GET(request: Request) {
         .filter((r) => r.compatibility >= MIN_COMPATIBILITY);
 
       range_used  = range;
-      suggestions = shuffle(eligible);
+      suggestions = shuffle(eligible).slice(0, MAX_SUGGESTIONS);
 
       // Si ya hay suficientes candidatos compatibles, o es el ultimo rango
       // disponible, nos quedamos con lo que haya (en orden aleatorio, no
       // siempre el "mejor" primero).
-      if (suggestions.length >= 5 || range === 500) break;
+      if (suggestions.length >= MAX_SUGGESTIONS || range === 500) break;
     }
 
     return NextResponse.json({ suggestions, range_used, user_mmr: userMMR });
