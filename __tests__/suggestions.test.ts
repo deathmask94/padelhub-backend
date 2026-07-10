@@ -39,9 +39,10 @@ describe("🎯 PRUEBAS UNITARIAS - SUGERENCIAS DE RIVALES", () => {
     expect(res.status).toBe(404);
   });
 
-  it("Debería retornar sugerencias con compatibilidad cuando hay ≥5 rivales en ±150", async () => {
+  it("Debería retornar sugerencias con compatibilidad cuando hay ≥5 rivales elegibles (≥80%) en ±150", async () => {
     (prisma.users.findUnique as jest.Mock).mockResolvedValue({ mmr: 1000, is_active: true });
-    (prisma.users.findMany  as jest.Mock).mockResolvedValue(mockRivals(6));
+    // Diffs 0..25 -> compat a rango 150 entre 83% y 100%, todos elegibles.
+    (prisma.users.findMany  as jest.Mock).mockResolvedValue(mockRivals(6, 1000));
 
     const req = new Request("http://localhost:3000/api/users/suggestions", {
       headers: { Authorization: "Bearer valid-token" },
@@ -51,18 +52,19 @@ describe("🎯 PRUEBAS UNITARIAS - SUGERENCIAS DE RIVALES", () => {
 
     expect(res.status).toBe(200);
     expect(data).toHaveProperty("suggestions");
-    expect(data).toHaveProperty("range_used");
+    expect(data).toHaveProperty("range_used", 150);
     expect(data).toHaveProperty("user_mmr", 1000);
     expect(data.suggestions.length).toBeGreaterThanOrEqual(5);
     expect(data.suggestions[0]).toHaveProperty("compatibility");
   });
 
-  it("Debería expandir el rango a ±300 si ±150 da menos de 5 rivales", async () => {
+  it("Debería expandir el rango a ±300 si ±150 da menos de 5 rivales elegibles", async () => {
     (prisma.users.findUnique as jest.Mock).mockResolvedValue({ mmr: 1000, is_active: true });
-    // Primera llamada (±150): 2 rivales; segunda (±300): 5
+    // Primera llamada (±150): 2 rivales cercanos (elegibles pero <5 en total);
+    // segunda (±300): 5 rivales con diff <= 50 -> compat >= 80% a rango 300.
     (prisma.users.findMany as jest.Mock)
-      .mockResolvedValueOnce(mockRivals(2))
-      .mockResolvedValueOnce(mockRivals(5, 1250));
+      .mockResolvedValueOnce(mockRivals(2, 1000))
+      .mockResolvedValueOnce(mockRivals(5, 1010));
 
     const req = new Request("http://localhost:3000/api/users/suggestions", {
       headers: { Authorization: "Bearer valid-token" },
@@ -77,7 +79,8 @@ describe("🎯 PRUEBAS UNITARIAS - SUGERENCIAS DE RIVALES", () => {
 
   it("Debería retornar lo que haya aunque sean <5 rivales tras agotar todos los rangos", async () => {
     (prisma.users.findUnique as jest.Mock).mockResolvedValue({ mmr: 1000, is_active: true });
-    (prisma.users.findMany  as jest.Mock).mockResolvedValue(mockRivals(2, 1400));
+    // Diff 90/95: compat < 80% a rango 150 y 300, pero >= 80% a rango 500.
+    (prisma.users.findMany  as jest.Mock).mockResolvedValue(mockRivals(2, 1090));
 
     const req = new Request("http://localhost:3000/api/users/suggestions", {
       headers: { Authorization: "Bearer valid-token" },
@@ -90,14 +93,11 @@ describe("🎯 PRUEBAS UNITARIAS - SUGERENCIAS DE RIVALES", () => {
     expect(data.suggestions.length).toBe(2);
   });
 
-  it("Las sugerencias deben venir ordenadas por compatibilidad descendente", async () => {
+  it("Debería excluir rivales con menos de 80% de compatibilidad", async () => {
     (prisma.users.findUnique as jest.Mock).mockResolvedValue({ mmr: 1000, is_active: true });
     (prisma.users.findMany  as jest.Mock).mockResolvedValue([
-      { id: "a", name: "A", photo_url: null, level: "tercera", mmr: 1100, zone: "Z" },
-      { id: "b", name: "B", photo_url: null, level: "tercera", mmr: 1010, zone: "Z" },
-      { id: "c", name: "C", photo_url: null, level: "tercera", mmr: 1140, zone: "Z" },
-      { id: "d", name: "D", photo_url: null, level: "tercera", mmr: 1005, zone: "Z" },
-      { id: "e", name: "E", photo_url: null, level: "tercera", mmr: 1050, zone: "Z" },
+      { id: "close", name: "Close", photo_url: null, level: "tercera", mmr: 1010, zone: "Z" }, // compat 93% a r150
+      { id: "far",   name: "Far",   photo_url: null, level: "tercera", mmr: 1400, zone: "Z" }, // compat 0% siempre
     ]);
 
     const req = new Request("http://localhost:3000/api/users/suggestions", {
@@ -106,8 +106,11 @@ describe("🎯 PRUEBAS UNITARIAS - SUGERENCIAS DE RIVALES", () => {
     const res  = await suggestionsHandler(req);
     const data = await res.json();
 
-    const comps = data.suggestions.map((s: { compatibility: number }) => s.compatibility);
-    const sorted = [...comps].sort((a: number, b: number) => b - a);
-    expect(comps).toEqual(sorted);
+    const ids = data.suggestions.map((s: { id: string }) => s.id);
+    expect(ids).toContain("close");
+    expect(ids).not.toContain("far");
+    for (const s of data.suggestions) {
+      expect(s.compatibility).toBeGreaterThanOrEqual(80);
+    }
   });
 });

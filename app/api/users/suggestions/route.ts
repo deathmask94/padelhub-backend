@@ -5,6 +5,17 @@ import { verifyToken } from '@/lib/jwt';
 const compat = (userMMR: number, rivalMMR: number, range: number): number =>
   Math.max(0, Math.round(100 - (Math.abs(userMMR - rivalMMR) / range) * 100));
 
+const MIN_COMPATIBILITY = 80;
+
+function shuffle<T>(items: T[]): T[] {
+  const arr = [...items];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
 export async function GET(request: Request) {
   try {
     const auth  = request.headers.get('authorization') ?? '';
@@ -45,21 +56,17 @@ export async function GET(request: Request) {
         take:    20,
       });
 
-      if (rivals.length >= 5) {
-        range_used  = range;
-        suggestions = rivals
-          .map((r) => ({ ...r, compatibility: compat(userMMR, r.mmr, range) }))
-          .sort((a, b) => b.compatibility - a.compatibility);
-        break;
-      }
+      const eligible = rivals
+        .map((r) => ({ ...r, compatibility: compat(userMMR, r.mmr, range) }))
+        .filter((r) => r.compatibility >= MIN_COMPATIBILITY);
 
-      // Si es el último rango, devolver lo que haya aunque sean menos de 5
-      if (range === 500) {
-        range_used  = range;
-        suggestions = rivals
-          .map((r) => ({ ...r, compatibility: compat(userMMR, r.mmr, range) }))
-          .sort((a, b) => b.compatibility - a.compatibility);
-      }
+      range_used  = range;
+      suggestions = shuffle(eligible);
+
+      // Si ya hay suficientes candidatos compatibles, o es el ultimo rango
+      // disponible, nos quedamos con lo que haya (en orden aleatorio, no
+      // siempre el "mejor" primero).
+      if (suggestions.length >= 5 || range === 500) break;
     }
 
     return NextResponse.json({ suggestions, range_used, user_mmr: userMMR });
