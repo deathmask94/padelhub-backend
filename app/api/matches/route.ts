@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { verifyToken } from "@/lib/jwt";
 
 // Una cancha por ciudad — debe coincidir con el listado del frontend
 // (PadelHub-FrontEnd/app/routes/crear.tsx y matchmaking.tsx).
@@ -93,12 +94,22 @@ export async function GET(request: Request) {
       dateWhere.lt = t;
     }
 
+    // Un partido que el usuario ya rechazo no debe seguir apareciendo en
+    // Disponibles -- ya tomo su decision sobre esa invitacion.
+    let userId: string | null = null;
+    const authHeader = request.headers.get("authorization");
+    const token = authHeader?.replace("Bearer ", "");
+    if (token) {
+      try { ({ userId } = await verifyToken(token)); } catch { /* token invalido: no filtrar por usuario */ }
+    }
+
     const matches = await prisma.matches.findMany({
       where: {
         status:     "open",
         match_date: dateWhere,
         ...(format ? { format: format as never } : {}),
         ...(zone   ? { users: { zone } }          : {}),
+        ...(userId ? { match_players: { none: { user_id: userId, status: "rejected" } } } : {}),
       },
       include: {
         users: { select: { name: true, level: true, mmr: true, photo_url: true, zone: true } },
