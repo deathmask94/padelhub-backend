@@ -42,6 +42,24 @@ export async function POST(request: Request) {
       );
     }
 
+    const finalFormat = format || "doubles";
+
+    // Dobles siempre es casual (no afecta MMR); el modo competitivo (ranked)
+    // solo existe en individual, ya sea via matchmaking o desafio directo.
+    const isRanked = finalFormat === "doubles" ? false : Boolean(body.is_ranked);
+
+    // En un partido que afecta MMR, los jugadores deben ser del mismo sexo:
+    // se fuerza el gender_preference al genero del organizador, sin importar
+    // lo que haya llegado en el body (no es una preferencia, es obligatorio).
+    let finalGenderPreference = gender_preference || null;
+    if (isRanked) {
+      const organizer = await prisma.users.findUnique({
+        where:  { id: organizer_id },
+        select: { gender: true },
+      });
+      finalGenderPreference = organizer?.gender ?? null;
+    }
+
     // match_date: "2026-06-18", match_time: "2026-06-18T14:00:00"
     const formattedDate = new Date(match_date);
     const formattedTime = new Date(match_time);
@@ -51,9 +69,10 @@ export async function POST(request: Request) {
       data: {
         organizer_id,
         club,
-        format: format || "doubles", // Si no viene, por defecto es doubles
+        format: finalFormat,
         status: "open",             // Estado inicial siempre abierto
-        gender_preference: gender_preference || null,
+        gender_preference: finalGenderPreference,
+        is_ranked: isRanked,
         match_date: formattedDate,
         match_time: formattedTime,
       },

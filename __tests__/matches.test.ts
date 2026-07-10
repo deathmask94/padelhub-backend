@@ -75,6 +75,50 @@ describe("🎾 PRUEBAS UNITARIAS - PARTIDOS", () => {
     const res = await createMatchHandler(req);
     expect(res.status).toBe(400);
   });
+
+  it("Debería forzar is_ranked=false si el formato es dobles, aunque se pida ranked", async () => {
+    (prisma.matches.create as jest.Mock).mockResolvedValue({ id: "match-uuid-creado" });
+
+    const req = new Request("http://localhost:3000/api/matches", {
+      method: "POST",
+      body: JSON.stringify({
+        organizer_id: "9e094ce9-64a6-44de-7806-744cdbb02695",
+        club: "Pádel Club Viña del Mar",
+        format: "doubles",
+        is_ranked: true,
+        match_date: "2026-05-20",
+        match_time: "19:30:00",
+      }),
+    });
+
+    await createMatchHandler(req);
+    expect(prisma.matches.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ is_ranked: false }) })
+    );
+  });
+
+  it("Debería forzar gender_preference al genero del organizador cuando is_ranked=true", async () => {
+    (prisma.users.findUnique as jest.Mock).mockResolvedValue({ gender: "Femenino" });
+    (prisma.matches.create   as jest.Mock).mockResolvedValue({ id: "match-uuid-creado" });
+
+    const req = new Request("http://localhost:3000/api/matches", {
+      method: "POST",
+      body: JSON.stringify({
+        organizer_id: "9e094ce9-64a6-44de-7806-744cdbb02695",
+        club: "Pádel Club Viña del Mar",
+        format: "singles",
+        is_ranked: true,
+        gender_preference: "Masculino", // intento de bypass -- debe ser ignorado
+        match_date: "2026-05-20",
+        match_time: "19:30:00",
+      }),
+    });
+
+    await createMatchHandler(req);
+    expect(prisma.matches.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ is_ranked: true, gender_preference: "Femenino" }) })
+    );
+  });
 });
 
 describe("❌ PRUEBAS UNITARIAS - CANCELAR PARTIDO (POST /matches/[id]/cancel)", () => {
@@ -131,7 +175,7 @@ describe("🏆 PRUEBAS UNITARIAS - REGISTRAR RESULTADO (POST /matches/[id]/resul
 
   const CONFIRMED_MATCH = {
     id: "match-uuid", status: "confirmed", club: "Club Test",
-    organizer_id: "organizer-uuid",
+    organizer_id: "organizer-uuid", is_ranked: true,
     match_date: new Date(), match_time: new Date(),
     users:         { id: "organizer-uuid", mmr: 1000 },
     match_players: [
@@ -186,7 +230,7 @@ describe("🏆 PRUEBAS UNITARIAS - REGISTRAR RESULTADO (POST /matches/[id]/resul
     expect(res.status).toBe(400);
   });
 
-  it("Debería retornar 200 y aplicar cambios de MMR correctamente", async () => {
+  it("Debería retornar 200 y aplicar cambios de MMR correctamente si el partido es competitivo", async () => {
     (prisma.matches.findUnique as jest.Mock).mockResolvedValue(CONFIRMED_MATCH);
     (prisma.$transaction       as jest.Mock).mockResolvedValue([{}, {}, {}, {}]);
 
@@ -199,6 +243,24 @@ describe("🏆 PRUEBAS UNITARIAS - REGISTRAR RESULTADO (POST /matches/[id]/resul
     const data = await res.json();
 
     expect(res.status).toBe(200);
-    expect(data).toHaveProperty("changes");
+    expect(data.changes).toHaveLength(2);
+  });
+
+  it("No debería tocar el MMR si el partido es casual/exhibición", async () => {
+    const { calculateELO } = require("@/lib/elo");
+    (prisma.matches.findUnique as jest.Mock).mockResolvedValue({ ...CONFIRMED_MATCH, is_ranked: false });
+    (prisma.$transaction       as jest.Mock).mockResolvedValue([{}, {}]);
+
+    const req = new Request("http://localhost:3000/api/matches/match-uuid/result", {
+      method: "POST", headers: { Authorization: "Bearer token" },
+      body:   JSON.stringify({ winner: "team_a", organizer_team: "team_a", score_team_a: "6-3", score_team_b: "3-6" }),
+    });
+    const ctx  = { params: Promise.resolve({ id: "match-uuid" }) };
+    const res  = await resultMatchHandler(req, ctx as any);
+    const data = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(data.changes).toEqual([]);
+    expect(calculateELO).not.toHaveBeenCalled();
   });
 });

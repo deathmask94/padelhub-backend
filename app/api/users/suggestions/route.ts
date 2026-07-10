@@ -26,7 +26,7 @@ export async function GET(request: Request) {
 
     const me = await prisma.users.findUnique({
       where:  { id: userId },
-      select: { mmr: true, is_active: true },
+      select: { mmr: true, is_active: true, gender: true },
     });
     if (!me || !me.is_active) {
       return NextResponse.json({ error: 'Usuario no encontrado' }, { status: 404 });
@@ -34,8 +34,10 @@ export async function GET(request: Request) {
 
     const userMMR = me.mmr;
 
-    const genderParam = new URL(request.url).searchParams.get('gender');
-    const genderFilter = genderParam === 'Masculino' || genderParam === 'Femenino' ? genderParam : undefined;
+    // Matchmaking siempre es competitivo (afecta MMR), asi que el rival
+    // obligatoriamente debe ser del mismo sexo -- no es una preferencia
+    // opcional como en la creacion manual de partidos casuales.
+    const genderFilter = me.gender ?? undefined;
 
     // Intentar con ±150, luego ±300, luego ±500 hasta tener al menos 5 rivales
     const RANGES = [150, 300, 500];

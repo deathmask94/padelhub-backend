@@ -15,6 +15,8 @@ export async function GET(request: Request) {
     const zone    = searchParams.get('zone');
     const mmr_min = searchParams.get('mmr_min');
     const mmr_max = searchParams.get('mmr_max');
+    const genderParam = searchParams.get('gender');
+    const gender  = genderParam === 'Masculino' || genderParam === 'Femenino' ? genderParam : undefined;
 
     // q es opcional: si tiene menos de 2 chars simplemente no filtra.
     // Se busca solo por @usuario (unico) a proposito, para evitar listas
@@ -31,6 +33,7 @@ export async function GET(request: Request) {
         ...usernameFilter,
         ...(level   ? { level: level as never }                            : {}),
         ...(zone    ? { zone }                                              : {}),
+        ...(gender  ? { gender }                                            : {}),
         ...(mmr_min || mmr_max ? {
           mmr: {
             ...(mmr_min ? { gte: parseInt(mmr_min) } : {}),

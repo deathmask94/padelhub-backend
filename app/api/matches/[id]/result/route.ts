@@ -71,7 +71,8 @@ export async function POST(request: Request, context: Params) {
       return NextResponse.json({ error: 'Ambos equipos deben tener al menos un jugador' }, { status: 400 });
     }
 
-    const changes = calculateELO(teamA, teamB, winner);
+    // Los partidos casuales/exhibicion registran resultado pero no tocan MMR.
+    const changes = match.is_ranked ? calculateELO(teamA, teamB, winner) : [];
 
     // Persist all changes in a transaction
     await prisma.$transaction([

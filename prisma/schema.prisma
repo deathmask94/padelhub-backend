@@ -51,6 +51,7 @@ model matches {
   format        match_format    @default(doubles)
   status        match_status    @default(open)
   gender_preference gender?
+  is_ranked     Boolean         @default(true)
   match_date    DateTime        @db.Date
   match_time    DateTime        @db.Time(6)
   created_at    DateTime        @default(now()) @db.Timestamp(6)
