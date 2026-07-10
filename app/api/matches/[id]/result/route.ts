@@ -14,18 +14,14 @@ export async function POST(request: Request, context: Params) {
     const { userId } = await verifyToken(token);
 
     const body = await request.json();
-    const { winner, organizer_team, score_team_a, score_team_b } = body as {
-      winner:         'team_a' | 'team_b';
-      organizer_team: 'team_a' | 'team_b';
-      score_team_a?:  string;
-      score_team_b?:  string;
+    const { winner, score_team_a, score_team_b } = body as {
+      winner:        'team_a' | 'team_b';
+      score_team_a?: string;
+      score_team_b?: string;
     };
 
     if (winner !== 'team_a' && winner !== 'team_b') {
       return NextResponse.json({ error: "winner debe ser 'team_a' o 'team_b' (en pádel no hay empate)" }, { status: 400 });
-    }
-    if (organizer_team !== 'team_a' && organizer_team !== 'team_b') {
-      return NextResponse.json({ error: 'organizer_team es requerido' }, { status: 400 });
     }
     // Cada set aporta un digito por equipo (ej. "6-4-6" = 3 sets); se
     // exige el score, ya no es opcional.
@@ -51,7 +47,22 @@ export async function POST(request: Request, context: Params) {
       return NextResponse.json({ error: 'El partido debe estar confirmado o en curso' }, { status: 400 });
     }
 
-    // Organizer as player on their selected team
+    // El equipo del organizador ya no se pregunta aca: en dobles quedo fijo
+    // desde que se creo el partido (matches.organizer_team), y en singles
+    // se deduce solo -- es el equipo opuesto al del unico rival. Antes se
+    // le preguntaba al organizador y podia elegir mal (ej. un equipo que ya
+    // estaba lleno por los invitados).
+    let organizerTeam: 'team_a' | 'team_b';
+    if (match.format === 'doubles') {
+      if (match.organizer_team !== 'team_a' && match.organizer_team !== 'team_b') {
+        return NextResponse.json({ error: 'Este partido no tiene un equipo de organizador definido' }, { status: 400 });
+      }
+      organizerTeam = match.organizer_team;
+    } else {
+      const opponentTeam = match.match_players[0]?.team;
+      organizerTeam = opponentTeam === 'team_a' ? 'team_b' : 'team_a';
+    }
+
     const organizerPlayer = { id: match.users.id, mmr: match.users.mmr };
 
     const teamA = match.match_players
@@ -62,8 +73,8 @@ export async function POST(request: Request, context: Params) {
       .filter((p) => p.team === 'team_b')
       .map((p) => ({ id: p.users.id, mmr: p.users.mmr }));
 
-    if (organizer_team === 'team_a') teamA.push(organizerPlayer);
-    else                             teamB.push(organizerPlayer);
+    if (organizerTeam === 'team_a') teamA.push(organizerPlayer);
+    else                            teamB.push(organizerPlayer);
 
     if (teamA.length === 0 || teamB.length === 0) {
       return NextResponse.json({ error: 'Ambos equipos deben tener al menos un jugador' }, { status: 400 });
@@ -77,7 +88,7 @@ export async function POST(request: Request, context: Params) {
       data: {
         match_id:       matchId,
         registered_by:  userId,
-        organizer_team,
+        organizer_team: organizerTeam,
         score_team_a,
         score_team_b,
         winner,

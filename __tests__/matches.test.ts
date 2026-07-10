@@ -64,6 +64,7 @@ describe("🎾 PRUEBAS UNITARIAS - PARTIDOS", () => {
         organizer_id: "9e094ce9-64a6-44de-7806-744cdbb02695",
         club: "Pádel Club Viña del Mar",
         format: "doubles",
+        organizer_team: "team_a",
         match_date: "2026-05-20",
         match_time: "19:30:00"
       }),
@@ -71,6 +72,22 @@ describe("🎾 PRUEBAS UNITARIAS - PARTIDOS", () => {
 
     const res = await createMatchHandler(req);
     expect(res.status).toBe(201);
+  });
+
+  it("Debería retornar 400 en dobles si no se elige en qué equipo juega el organizador", async () => {
+    const req = new Request("http://localhost:3000/api/matches", {
+      method: "POST",
+      body: JSON.stringify({
+        organizer_id: "9e094ce9-64a6-44de-7806-744cdbb02695",
+        club: "Pádel Club Viña del Mar",
+        format: "doubles",
+        match_date: "2026-05-20",
+        match_time: "19:30:00",
+      }),
+    });
+
+    const res = await createMatchHandler(req);
+    expect(res.status).toBe(400);
   });
 
   it("Debería retornar 400 si faltan campos obligatorios al crear un partido", async () => {
@@ -89,6 +106,7 @@ describe("🎾 PRUEBAS UNITARIAS - PARTIDOS", () => {
         club: "Pádel Club Viña del Mar",
         format: "doubles",
         is_ranked: true,
+        organizer_team: "team_b",
         match_date: "2026-05-20",
         match_time: "19:30:00",
       }),
@@ -96,7 +114,7 @@ describe("🎾 PRUEBAS UNITARIAS - PARTIDOS", () => {
 
     await createMatchHandler(req);
     expect(prisma.matches.create).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ is_ranked: false }) })
+      expect.objectContaining({ data: expect.objectContaining({ is_ranked: false, organizer_team: "team_b" }) })
     );
   });
 

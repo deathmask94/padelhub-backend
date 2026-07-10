@@ -197,3 +197,71 @@ describe("⚖️ PRUEBAS UNITARIAS - EQUIDAD DE GÉNERO EN 'AUTOMÁTICO'", () =>
     );
   });
 });
+
+describe("🧍 PRUEBAS UNITARIAS - EL ORGANIZADOR CUENTA PARA CUPO Y EQUIDAD", () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it("invite: bloquea invitar a team_a si ya está lleno contando al organizador", async () => {
+    (prisma.matches.findUnique as jest.Mock).mockResolvedValue({
+      ...BASE_MATCH,
+      organizer_team: "team_a",
+      users: { name: "Organizador", gender: "Masculino" },
+      match_players: [
+        { user_id: "p1", status: "confirmed", team: "team_a", users: { gender: "Masculino" } },
+      ],
+    });
+
+    const req = new Request("http://localhost:3000/api/matches/match-uuid/invite", {
+      method: "POST", headers: { Authorization: "Bearer token" },
+      body: JSON.stringify({ userId: "invitee-uuid", team: "team_a" }),
+    });
+    const res = await inviteHandler(req, { params: Promise.resolve({ id: "match-uuid" }) });
+    expect(res.status).toBe(400);
+    expect(prisma.match_players.upsert).not.toHaveBeenCalled();
+  });
+
+  it("invite: Automático empareja con el organizador si es el único de su equipo y hay mezcla de sexo", async () => {
+    (prisma.users.findUnique as jest.Mock).mockResolvedValue({ gender: "Femenino", name: "Ana", email: null });
+    (prisma.matches.findUnique as jest.Mock).mockResolvedValue({
+      ...BASE_MATCH,
+      organizer_team: "team_a",
+      users: { name: "Organizador", gender: "Masculino" },
+      match_players: [],
+    });
+
+    const req = new Request("http://localhost:3000/api/matches/match-uuid/invite", {
+      method: "POST", headers: { Authorization: "Bearer token" },
+      body: JSON.stringify({ userId: "invitee-uuid" }), // Automatico
+    });
+    const res = await inviteHandler(req, { params: Promise.resolve({ id: "match-uuid" }) });
+    expect(res.status).toBe(201);
+    // El organizador (hombre) esta solo en team_a -- la mujer debe emparejarse ahi.
+    expect(prisma.match_players.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({ update: expect.objectContaining({ team: "team_a" }) })
+    );
+  });
+
+  it("join: cuenta al organizador para el balance por cupo", async () => {
+    const { verifyToken } = require("@/lib/jwt");
+    verifyToken.mockResolvedValueOnce({ userId: "joiner-uuid", role: "player" });
+    (prisma.users.findUnique as jest.Mock).mockResolvedValue({ gender: null, name: "Joiner" });
+    (prisma.matches.findUnique as jest.Mock).mockResolvedValue({
+      id: "match-uuid", status: "open", format: "doubles", organizer_id: "organizer-uuid",
+      club: "Club X",
+      organizer_team: "team_a",
+      users: { gender: null },
+      match_players: [],
+    });
+
+    const req = new Request("http://localhost:3000/api/matches/match-uuid/join", {
+      method: "POST", headers: { Authorization: "Bearer token" },
+    });
+    const res = await joinHandler(req, { params: Promise.resolve({ id: "match-uuid" }) });
+
+    expect(res.status).toBe(201);
+    // team_a ya tiene al organizador (1), team_b vacio (0) -> debe ir a team_b.
+    expect(prisma.match_players.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({ update: expect.objectContaining({ team: "team_b" }) })
+    );
+  });
+});

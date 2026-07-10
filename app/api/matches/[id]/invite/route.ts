@@ -38,7 +38,7 @@ export async function POST(request: Request, context: Params) {
           where:   { status: { not: 'removed' } },
           include: { users: { select: { gender: true } } },
         },
-        users: { select: { name: true } },
+        users: { select: { name: true, gender: true } },
       },
     });
 
@@ -69,9 +69,16 @@ export async function POST(request: Request, context: Params) {
       return NextResponse.json({ error: 'El partido ya está completo' }, { status: 400 });
     }
 
+    // El organizador ya tiene equipo fijo desde que creó el partido (en
+    // dobles) -- cuenta para el cupo y para el balance de genero igual que
+    // cualquier otro jugador, aunque no tenga fila en match_players.
+    const withOrganizer = match.organizer_team
+      ? [...match.match_players, { team: match.organizer_team, users: { gender: match.users.gender } }]
+      : match.match_players;
+
     if (team) {
       const maxPerTeam = Math.floor(maxPlayers / 2);
-      const teamCount  = match.match_players.filter((p) => p.team === team).length;
+      const teamCount  = withOrganizer.filter((p) => p.team === team).length;
       if (teamCount >= maxPerTeam) {
         return NextResponse.json({ error: 'Ese equipo ya está completo' }, { status: 400 });
       }
@@ -84,7 +91,7 @@ export async function POST(request: Request, context: Params) {
     // todos son del mismo sexo, o emparejando 1 hombre + 1 mujer por
     // equipo si el partido termina siendo mixto.
     const assignedTeam = team ?? pickAutoTeam(
-      match.match_players.map((p) => ({ team: p.team, gender: p.users.gender })),
+      withOrganizer.map((p) => ({ team: p.team, gender: p.users.gender })),
       invited?.gender,
     );
     const player = await prisma.match_players.upsert({
